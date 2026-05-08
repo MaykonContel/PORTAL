@@ -2258,5 +2258,456 @@ async function confirmarImport(){
   _importData = [];
 }
 </script>
+<script>
+// ============================================================
+// PATCH FINAL CONTEL — importação, financeiros, gráficos e modal
+// ============================================================
+(function(){
+  const norm = v => String(v ?? '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ').trim().toUpperCase();
+
+  window.BRL = function(v){
+    if(v === null || v === undefined || v === '') return 0;
+    if(typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    let s = String(v).trim();
+    if(!s) return 0;
+    s = s.replace(/R\$/gi,'').replace(/%/g,'').replace(/\s/g,'');
+    const hasComma = s.includes(',');
+    const hasDot = s.includes('.');
+    if(hasComma && hasDot){ s = s.replace(/\./g,'').replace(',', '.'); }
+    else if(hasComma){ s = s.replace(',', '.'); }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  window.num = function(v){ return BRL(v); };
+  window.moneyText = function(v){
+    v = Number(v || 0);
+    return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  };
+  window.moneyShort = function(v){
+    v = Number(v || 0);
+    if(Math.abs(v) >= 1000000) return 'R$ ' + (v/1000000).toFixed(1).replace('.',',') + 'M';
+    if(Math.abs(v) >= 1000) return 'R$ ' + Math.round(v/1000).toLocaleString('pt-BR') + 'k';
+    return moneyText(v);
+  };
+
+  window.R$ = window.R$ || (v => v == null ? '—' : moneyText(v));
+  window.MC = function(mc){
+    mc = Number(mc || 0);
+    const p = (mc*100).toFixed(1).replace('.',',') + '%';
+    return mc < 0 ? `<span style="color:var(--red);font-weight:600">${p}</span>` :
+           mc < 0.2 ? `<span style="color:var(--amber);font-weight:600">${p}</span>` :
+                      `<span style="color:var(--green);font-weight:600">${p}</span>`;
+  };
+
+  window.closeM = function(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.remove('open');
+    if(id === 'mImport' || el.style.display === 'flex') el.style.display = 'none';
+  };
+  window.openM = function(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.classList.add('open');
+    if(id === 'mImport') el.style.display = 'flex';
+  };
+
+  function rowGet(row, names){
+    const map = {};
+    Object.keys(row || {}).forEach(k => map[norm(k)] = row[k]);
+    for(const n of names){
+      const key = norm(n);
+      if(Object.prototype.hasOwnProperty.call(map, key)) return map[key];
+    }
+    return '';
+  }
+
+  function normalizeStatus(v){
+    const s = norm(v);
+    if(s.includes('FINALIZ')) return 'Finalizado';
+    if(s.includes('PARALIS')) return 'Paralisada';
+    if(s.includes('CANCEL')) return 'Cancelada';
+    if(s.includes('NAO INICI') || s.includes('NÃO INICI')) return 'Não iniciada';
+    return 'Em andamento';
+  }
+
+  function normalizePrazo(v, status){
+    const s = String(v || '').trim();
+    if(s) return s;
+    if(status === 'Finalizado') return '✅ CONCLUÍDO';
+    if(status === 'Paralisada') return '⚠️ PARALISADO';
+    if(status === 'Cancelada') return '🚫CANCELADO';
+    return '🕓 EM ANDAMENTO';
+  }
+
+  function normalizeObra(o){
+    if(!o) return o;
+    o.idSite = String(o.idSite ?? '').trim();
+    o.idex = String(o.idex ?? '').trim();
+    o.cliente = String(o.cliente ?? '').trim();
+    o.cidade = String(o.cidade ?? '').trim();
+    o.uf = String(o.uf ?? '').trim();
+    o.receita = BRL(o.receita);
+    o.custo = BRL(o.custo);
+    o.material = BRL(o.material);
+    o.demais = BRL(o.demais);
+    o.logistica = BRL(o.logistica);
+    o.bdi = BRL(o.bdi);
+    o.lucro = (o.receita || 0) - (o.custo || 0);
+    let mc = BRL(o.mc);
+    if(mc > 1) mc = mc / 100;
+    o.mc = o.receita > 0 ? (Number.isFinite(mc) && mc !== 0 ? mc : o.lucro / o.receita) : 0;
+    if(!Array.isArray(o.parceiros)) o.parceiros = [];
+    o.parceiros = o.parceiros.map(p => ({...p, valor: BRL(p.valor)}));
+    o.status = normalizeStatus(o.status);
+    o.statusPrazo = normalizePrazo(o.statusPrazo, o.status);
+    return o;
+  }
+
+  function recalcParceirosTotals(){
+    if(!Array.isArray(window.PARCEIROS)) window.PARCEIROS = [];
+    if(!Array.isArray(window.OBRAS)) window.OBRAS = [];
+    const byName = new Map();
+    PARCEIROS.forEach(p => {
+      p.nome = String(p.nome || '').trim().toUpperCase();
+      if(!p.nome) return;
+      p.obras = 0;
+      p.total = 0;
+      byName.set(norm(p.nome), p);
+    });
+    OBRAS.forEach(o => {
+      normalizeObra(o);
+      (o.parceiros || []).forEach(px => {
+        const nome = String(px.nome || '').trim().toUpperCase();
+        if(!nome) return;
+        const key = norm(nome);
+        let p = byName.get(key);
+        if(!p){
+          p = {id:px.id || ('p'+Date.now()+Math.random()), nome, tipo:'Pessoa Física', esp:'Campo', uf:o.uf || '', tel:'', obs:'', obras:0, total:0};
+          PARCEIROS.push(p);
+          byName.set(key, p);
+        }
+        p.obras = Number(p.obras || 0) + 1;
+        p.total = Number(p.total || 0) + BRL(px.valor);
+      });
+    });
+    window.filtP = [...PARCEIROS];
+  }
+  window.recalcParceirosTotals = recalcParceirosTotals;
+
+  function refreshAll(){
+    if(Array.isArray(window.OBRAS)) window.OBRAS = OBRAS.map(normalizeObra);
+    recalcParceirosTotals();
+    window.filtered = [...OBRAS];
+    window.filtP = [...PARCEIROS];
+    try{ initSelects(); }catch(e){}
+    try{ populatePSel(); }catch(e){}
+    try{ renderParceiros(); }catch(e){ console.warn(e); }
+    try{ renderClientes(); }catch(e){ console.warn(e); }
+    try{ renderFin(); }catch(e){ console.warn(e); }
+    try{ renderKanban(); }catch(e){ }
+    try{ renderObras(); }catch(e){ }
+    requestAnimationFrame(()=>{ try{ initDash(); }catch(e){} try{ drawDash(); drawDashExtra(); }catch(e){ console.warn(e); } });
+  }
+  window.refreshAll = refreshAll;
+
+  window.importarPlanilha = async function(input){
+    const file = input.files && input.files[0];
+    input.value = '';
+    if(!file) return;
+    const modal = document.getElementById('mImport');
+    const body = document.getElementById('mImportBody');
+    const btn = document.getElementById('btnConfirmImport');
+    if(modal){ modal.style.display = 'flex'; modal.classList.add('open'); }
+    if(body) body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3)">⏳ Lendo planilha...</div>';
+    if(btn) btn.style.display = 'none';
+    window._importData = [];
+    try{
+      if(typeof XLSX === 'undefined') throw new Error('Biblioteca XLSX não carregada. Verifique conexão com internet ou use a versão local.');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const wsPlan = wb.Sheets['PLANEJAMENTO'];
+      if(!wsPlan) throw new Error('Aba PLANEJAMENTO não encontrada.');
+      const planRows = XLSX.utils.sheet_to_json(wsPlan, {defval:'', raw:true});
+
+      const equipeMap = {};
+      const wsEquipe = wb.Sheets['EQUIPE'];
+      if(wsEquipe){
+        const equipeRows = XLSX.utils.sheet_to_json(wsEquipe, {defval:'', raw:true});
+        equipeRows.forEach(r => {
+          const id = String(rowGet(r,['ID SITE']) || '').trim();
+          if(!id) return;
+          const equipes = [];
+          for(let i=1;i<=6;i++){
+            const nome = String(rowGet(r,[`EQUIPE ${i}`, `EQUIPE ${i} `]) || '').trim();
+            const valor = BRL(rowGet(r,[`VALOR${i}`, `VALOR ${i}`]));
+            if(nome && valor > 0) equipes.push({nome:nome.toUpperCase(), valor});
+          }
+          equipeMap[id] = equipes;
+        });
+      }
+
+      const etapaMap = {};
+      const wsEtapa = wb.Sheets['ETAPA OBRA'];
+      if(wsEtapa){
+        const etapaRows = XLSX.utils.sheet_to_json(wsEtapa, {defval:'', raw:true});
+        etapaRows.forEach(r => {
+          const id = String(rowGet(r,['ID SITE']) || '').trim();
+          if(!id) return;
+          const etapas = [];
+          Object.keys(r).forEach(k => {
+            const nk = norm(k);
+            if(['ID SITE','IDEX CONTEL'].includes(nk)) return;
+            const val = String(r[k] || '').trim().toLowerCase();
+            if(val === 'x' || val === '✓' || val === 'sim' || val === '1' || val === 'true') etapas.push(String(k).trim());
+          });
+          if(etapas.length) etapaMap[id] = etapas.join(', ');
+        });
+      }
+
+      const novas = [];
+      const totalParceiros = {n:0};
+      planRows.forEach(r => {
+        const idSite = String(rowGet(r,['ID SITE']) || '').trim();
+        if(!idSite) return;
+        const idex = String(rowGet(r,['IDEX CONTEL']) || '').trim() || ('contel-'+String(novas.length+1).padStart(3,'0'));
+        const receita = BRL(rowGet(r,['ORÇAMENTO (RECEITA) (R$)','ORCAMENTO (RECEITA) (R$)','RECEITA','ORÇAMENTO']));
+        const custo = BRL(rowGet(r,['CUSTOS TOTAIS (R$)','CUSTO TOTAL','CUSTOS TOTAIS']));
+        const material = BRL(rowGet(r,['MATERIAL']));
+        const demais = BRL(rowGet(r,['FRETE/DEMAIS ITENS','FRETE','DEMAIS ITENS']));
+        const empreita = BRL(rowGet(r,['VALOR EMPREITA','EMPREITA']));
+        let mc = BRL(rowGet(r,['M.C%','MC%','M.C %','MARGEM %']));
+        if(mc > 1) mc = mc / 100;
+        const lucro = receita - custo;
+        if(receita > 0 && (!Number.isFinite(mc) || mc === 0)) mc = lucro / receita;
+        const status = normalizeStatus(rowGet(r,['STATUS']));
+        const equipes = equipeMap[idSite] || [];
+        totalParceiros.n += equipes.length;
+        const parceirosList = equipes.map(e => ({
+          id:'p_'+norm(e.nome).replace(/[^A-Z0-9]/g,'_'),
+          nome:String(e.nome).trim().toUpperCase(),
+          valor:BRL(e.valor)
+        }));
+        const etapaPlan = String(rowGet(r,['ETAPA','ETAPA ']) || '').trim();
+        const etapa = etapaMap[idSite] || etapaPlan || (status === 'Finalizado' ? 'Finalizado' : 'Abertura de obra');
+        const obra = normalizeObra({
+          idSite,
+          idex,
+          cliente:String(rowGet(r,['CLIENTE']) || '').trim(),
+          cidade:String(rowGet(r,['CIDADE']) || '').trim(),
+          uf:String(rowGet(r,['ESTADO','UF']) || '').trim(),
+          maps:String(rowGet(r,['LOCALIZAÇÃO','LOCALIZACAO','MAPS']) || '').trim(),
+          sienge:String(rowGet(r,['SIENGE']) || '').trim(),
+          os:String(rowGet(r,['OS TOWER SYSTEM','OS']) || '').trim(),
+          planejador:String(rowGet(r,['PLANEJADOR OBRA','PLANEJADOR']) || '').trim(),
+          analista:String(rowGet(r,['ANALISTA CONTEL','ANALISTA']) || '').trim(),
+          material,
+          demais,
+          logistica:0,
+          empreita,
+          bdi:Math.max(custo - material - demais - empreita, 0),
+          receita,
+          custo,
+          lucro,
+          mc,
+          viabilidade:String(rowGet(r,['STATUS VIABILIDADE','VIABILIDADE']) || '').trim() || (mc>=0.30?'✅ OK - Fechar Parceiro':mc>=0.15?'⚠️ Ajustar Custos':mc>=0?'❌ Crítico (<15%)':'🚫 Inviável (prejuízo)'),
+          etapa,
+          status,
+          statusPrazo:normalizePrazo(rowGet(r,['STATUS PRAZO','PRAZO']), status),
+          parceiros:parceirosList,
+          estoque:null
+        });
+        novas.push(obra);
+      });
+
+      window._importData = novas;
+      const recTotal = novas.reduce((s,o)=>s+Number(o.receita||0),0);
+      const cstTotal = novas.reduce((s,o)=>s+Number(o.custo||0),0);
+      let html = `<div style="margin-bottom:12px;font-weight:700;color:var(--green)">✅ ${novas.length} obras encontradas para importar/atualizar · Receita ${moneyText(recTotal)} · Custo ${moneyText(cstTotal)} · ${totalParceiros.n} parceiro(s)</div>`;
+      html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:450px;overflow:auto;padding-right:4px">';
+      novas.slice(0,80).forEach(o => {
+        html += `<div style="display:grid;grid-template-columns:115px 70px 1fr 115px 95px;gap:8px;align-items:center;background:var(--surface2);border-radius:6px;padding:8px 12px;font-size:12px">
+          <span style="font-weight:700">${o.idSite}</span>
+          <span style="color:var(--txt3)">${o.cliente}</span>
+          <span style="color:var(--txt3)">${o.cidade}/${o.uf}</span>
+          <span style="font-weight:700">${moneyText(o.receita)}</span>
+          <span style="color:var(--${o.status==='Finalizado'?'green':o.status==='Paralisada'?'amber':'blue'})">${o.status}</span>
+        </div>`;
+      });
+      if(novas.length > 80) html += `<div style="text-align:center;color:var(--txt3);font-size:12px;padding:8px">... e mais ${novas.length-80} obras</div>`;
+      html += '</div>';
+      if(body) body.innerHTML = html;
+      if(btn) btn.style.display = novas.length ? 'inline-flex' : 'none';
+    }catch(e){
+      console.error(e);
+      if(body) body.innerHTML = `<div style="color:var(--red);padding:20px">❌ Erro ao ler planilha: ${e.message}</div>`;
+    }
+  };
+
+  window.confirmarImport = function(){
+    if(!Array.isArray(window._importData) || !_importData.length) return;
+    const existing = new Map();
+    OBRAS.forEach((o,i) => {
+      if(o.idSite) existing.set('site:'+norm(o.idSite), i);
+      if(o.idex) existing.set('idex:'+norm(o.idex), i);
+    });
+    let novos = 0, atualizados = 0;
+    _importData.forEach(obra => {
+      normalizeObra(obra);
+      const idx = existing.has('site:'+norm(obra.idSite)) ? existing.get('site:'+norm(obra.idSite)) : existing.get('idex:'+norm(obra.idex));
+      if(idx !== undefined && idx >= 0){ OBRAS[idx] = obra; atualizados++; }
+      else { OBRAS.unshift(obra); novos++; }
+    });
+    refreshAll();
+    try{ saveData(); }catch(e){}
+    closeM('mImport');
+    toast(`✅ Importação concluída: ${novos} nova(s), ${atualizados} atualizada(s).`);
+    window._importData = [];
+  };
+
+  window.renderParceiros = function(){
+    recalcParceirosTotals();
+    window.filtP = [...PARCEIROS];
+    const set = (id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+    set('pSubtitle', `${PARCEIROS.length} parceiro${PARCEIROS.length!==1?'s':''} cadastrado${PARCEIROS.length!==1?'s':''}`);
+    set('pStatN', PARCEIROS.length);
+    set('pStatPF', PARCEIROS.filter(p=>p.tipo==='Pessoa Física').length);
+    set('pStatEmp', PARCEIROS.filter(p=>p.tipo==='Empresa').length);
+    set('pStatPago', moneyShort(PARCEIROS.reduce((s,p)=>s+Number(p.total||0),0)));
+    renderPList();
+  };
+
+  window.renderPList = function(){
+    const list = (window.filtP && filtP.length ? filtP : PARCEIROS).slice();
+    const grid = document.getElementById('pGrid');
+    const table = document.getElementById('pTable');
+    if(grid) grid.innerHTML = list.slice(0,24).map(p=>`
+      <div class="pcard" onclick="openModalP(PARCEIROS.find(x=>x.id==='${p.id}'))">
+        <div class="pcard-hdr"><div class="pavatar" style="background:${avc(p.nome)}22;color:${avc(p.nome)}">${ini(p.nome)}</div><div><div class="pname">${p.nome}</div><div class="ptype">${p.tipo||'Pessoa Física'}${p.uf?' · '+p.uf:''}</div></div></div>
+        <div class="pstats">
+          <div class="ps"><div class="ps-lbl">Obras</div><div class="ps-val" style="color:var(--blue)">${Number(p.obras||0)}</div></div>
+          <div class="ps"><div class="ps-lbl">Total</div><div class="ps-val" style="color:var(--green);font-size:11px">${Number(p.total||0)>0?moneyShort(p.total):'—'}</div></div>
+          <div class="ps"><div class="ps-lbl">UF</div><div class="ps-val">${p.uf||'—'}</div></div>
+        </div>
+      </div>`).join('');
+    if(table) table.innerHTML = list.sort((a,b)=>Number(b.total||0)-Number(a.total||0)).map(p=>`
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:9px"><div style="width:30px;height:30px;border-radius:8px;background:${avc(p.nome)}22;color:${avc(p.nome)};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700">${ini(p.nome)}</div><strong>${p.nome}</strong></div></td>
+        <td><span class="badge ${p.tipo==='CLT'?'b-amber':p.tipo==='Empresa'?'b-purple':'b-blue'}">${p.tipo||'Pessoa Física'}</span></td>
+        <td>${p.esp||'Campo'}</td>
+        <td>${p.uf||'—'}</td>
+        <td>${Number(p.obras||0)}</td>
+        <td>${moneyText(p.total||0)}</td>
+        <td>${Number(p.obras||0)>0?moneyText(Number(p.total||0)/Number(p.obras||1)):'—'}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="openModalP(PARCEIROS.find(x=>x.id==='${p.id}'))">Editar</button></td>
+      </tr>`).join('');
+  };
+
+  window.renderClientes = function(){
+    const cd = {};
+    OBRAS.forEach(o=>{
+      normalizeObra(o);
+      const c = o.cliente || '—';
+      if(!cd[c]) cd[c] = {obras:0,co:0,an:0,pa:0,rec:0,cst:0,lc:0};
+      const d = cd[c]; d.obras++;
+      if(o.status==='Finalizado') d.co++; else if(o.status==='Em andamento') d.an++; else if(o.status==='Paralisada') d.pa++;
+      d.rec += Number(o.receita||0); d.cst += Number(o.custo||0); d.lc += Number(o.lucro||0);
+    });
+    const arr = Object.entries(cd).sort((a,b)=>b[1].rec-a[1].rec);
+    const cards = document.getElementById('cliCards');
+    if(cards) cards.innerHTML = arr.slice(0,9).map(([c,d])=>`
+      <div class="panel" style="margin-bottom:0"><div class="pb">
+        <div style="font-family:var(--font2);font-size:16px;font-weight:800;margin-bottom:6px">${c}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:var(--txt2)">
+          <div>Obras: <b>${d.obras}</b></div><div>Concl.: <b>${d.co}</b></div>
+          <div>Receita: <b>${moneyShort(d.rec)}</b></div><div>MC: <b>${d.rec>0?((d.lc/d.rec)*100).toFixed(1).replace('.',',')+'%':'—'}</b></div>
+        </div>
+      </div></div>`).join('');
+    const table = document.getElementById('cliTable');
+    if(table) table.innerHTML = arr.map(([c,d])=>`
+      <tr><td><strong>${c}</strong></td><td>${d.obras}</td><td>${d.co}</td><td>${d.an}</td><td>${d.pa}</td><td>${moneyText(d.rec)}</td><td>${moneyText(d.cst)}</td><td>${moneyText(d.lc)}</td><td>${MC(d.rec>0?d.lc/d.rec:0)}</td></tr>`).join('');
+  };
+
+  window.renderFin = function(){
+    const recT = OBRAS.reduce((s,o)=>s+Number(normalizeObra(o).receita||0),0);
+    const cstT = OBRAS.reduce((s,o)=>s+Number(o.custo||0),0);
+    const lucT = recT - cstT;
+    const mcAvg = recT > 0 ? lucT / recT : 0;
+    const negN = OBRAS.filter(o=>Number(o.mc||0)<0 && o.status!=='Cancelada').length;
+    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+    set('fKrecTotal', moneyShort(recT)); set('fKrecSub', `${OBRAS.length} obras`); set('fKcstTotal', moneyShort(cstT)); set('fKlucro', moneyShort(lucT)); set('fKmc', (mcAvg*100).toFixed(1).replace('.',',')+'%'); set('fKneg', negN);
+    const byCli={}; OBRAS.forEach(o=>{const c=o.cliente||'—'; if(!byCli[c]) byCli[c]={rec:0,cst:0,lc:0}; byCli[c].rec+=Number(o.receita||0); byCli[c].cst+=Number(o.custo||0); byCli[c].lc+=Number(o.lucro||0);});
+    const arr=Object.entries(byCli).map(([k,d])=>({k,...d,mc:d.rec>0?d.lc/d.rec:0})).sort((a,b)=>b.lc-a.lc).slice(0,12);
+    drawBarChart('cLucro',{labels:arr.map(x=>x.k),datasets:[{label:'Lucro',data:arr.map(x=>Math.round(x.lc)),color:'#059669'}],showLegend:false,yFormat:v=>moneyShort(v)});
+    drawBarChart('cFaixa',{labels:arr.map(x=>x.k),datasets:[{label:'MC%',data:arr.map(x=>Number((x.mc*100).toFixed(1))),color:'#2563eb'}],showLegend:false,yFormat:v=>v+'%',colorsPerBar:arr.map(x=>x.mc>=.4?'#059669':x.mc>=.2?'#2563eb':x.mc>=0?'#d97706':'#dc2626')});
+    const crit = OBRAS.filter(o=>Number(o.mc||0)<.2 && o.status!=='Cancelada').sort((a,b)=>Number(a.mc||0)-Number(b.mc||0)).slice(0,40);
+    const tb=document.getElementById('finTable'); if(tb) tb.innerHTML=crit.map(o=>`<tr><td class="td-mono"><strong>${o.idSite}</strong></td><td>${o.cliente}</td><td>${o.cidade}/${o.uf}</td><td>${moneyText(o.receita)}</td><td>${moneyText(o.custo)}</td><td>${moneyText(o.lucro)}</td><td>${MC(o.mc)}</td><td>${o.viabilidade||''}</td></tr>`).join('');
+  };
+
+  window.drawDash = function(){
+    OBRAS.forEach(normalizeObra);
+    const cc={}; OBRAS.forEach(o=>{cc[o.cliente||'—']=(cc[o.cliente||'—']||0)+1;});
+    const cs=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    drawBarChart('cClientes',{labels:cs.map(x=>x[0]),datasets:[{label:'Obras',data:cs.map(x=>x[1]),color:'#2563eb'}],showLegend:false,yFormat:v=>Math.round(v)});
+    const sc={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0,'Não iniciada':0}; OBRAS.forEach(o=>{sc[o.status] = (sc[o.status]||0)+1;});
+    drawDonutChart('cStatus',{labels:Object.keys(sc),data:Object.values(sc),colors:['#059669','#2563eb','#d97706','#94a3b8','#cbd5e1']});
+    const cm={}; OBRAS.forEach(o=>{const c=o.cliente||'—'; if(!cm[c]) cm[c]={rec:0,lc:0}; cm[c].rec+=Number(o.receita||0); cm[c].lc+=Number(o.lucro||0);});
+    const ca=Object.entries(cm).map(([k,d])=>({k,mc:d.rec>0?d.lc/d.rec:0})).sort((a,b)=>b.mc-a.mc).slice(0,12);
+    drawBarChart('cMargem',{labels:ca.map(x=>x.k),datasets:[{label:'MC%',data:ca.map(x=>Number((x.mc*100).toFixed(1))),color:'#059669'}],showLegend:false,yFormat:v=>v+'%',colorsPerBar:ca.map(x=>x.mc>=.3?'#059669':x.mc>=.15?'#d97706':'#dc2626')});
+    const ec={}; OBRAS.filter(o=>o.status==='Em andamento').forEach(o=>{String(o.etapa||'Sem etapa').split(',').map(e=>e.trim()).filter(Boolean).forEach(e=>{ec[e]=(ec[e]||0)+1;});});
+    const es=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    drawBarChart('cEtapa',{labels:es.map(x=>x[0]),datasets:[{label:'Obras',data:es.map(x=>x[1]),color:'#7c3aed'}],horizontal:true,showLegend:false,yFormat:v=>Math.round(v)});
+  };
+
+  window.drawDashExtra = function(){
+    const total = OBRAS.length || 1;
+    const PESO={'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execução':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100};
+    const avancoObra=o=>{ if(o.status==='Finalizado') return 100; if(o.status==='Cancelada'||o.status==='Paralisada') return 0; const ps=String(o.etapa||'').split(',').map(e=>PESO[e.trim()]||0); return Math.max(5,...ps); };
+    const avanco = OBRAS.reduce((s,o)=>s+avancoObra(o),0)/total;
+    const labels=['S1','S2','S3','S4','S5','S6','S7','S8'];
+    const curva=t=>100*(3*t*t-2*t*t*t);
+    const base=labels.map((_,i)=>Number((curva(i/7)*0.92).toFixed(1)));
+    const prev=labels.map((_,i)=>Number(curva(i/7).toFixed(1)));
+    const real=labels.map((_,i)=> i<=5 ? Number((avanco*curva(i/5)/100).toFixed(1)) : null);
+    drawLineChart('dCurvaS',{labels,datasets:[{label:'Base',data:base,color:'#d97706',dash:true},{label:'Previsto',data:prev,color:'#2563eb'},{label:'Realizado',data:real,color:'#059669',width:3}],yFormat:v=>v+'%',yMin:0,yMax:105});
+    const incPrev=prev.map((v,i)=>i?Number((v-prev[i-1]).toFixed(1)):v);
+    const incReal=real.map((v,i)=>v==null?null:(i?Number((v-(real[i-1]||0)).toFixed(1)):v));
+    drawLineChart('dSemanal',{labels,datasets:[{label:'Previsto acumulado',data:prev,color:'#2563eb'},{label:'Realizado acumulado',data:real,color:'#059669',width:3},{label:'Base',data:base,color:'#d97706',dash:true}],yFormat:v=>v+'%',yMin:0,yMax:105});
+    const etapas=['Abertura de obra','Elaboração de cronograma','Mapeamento','Projeto','Compra de material','Fabricação / Galvanização','Envio de material','Execução','Finalizado'];
+    const dEt=document.getElementById('dEtapas'); if(dEt) dEt.innerHTML=etapas.map(e=>{const n=OBRAS.filter(o=>String(o.etapa||'').includes(e)||o.status===e).length; const pct=Math.round(n/total*100); return `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><strong>${e}</strong><span>${n} · ${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:var(--blue)"></div></div></div>`;}).join('');
+    if(typeof renderAlertasReais==='function') renderAlertasReais();
+  };
+
+  window.initDash = function(){
+    if(!Array.isArray(window.OBRAS)) window.OBRAS=[];
+    OBRAS.forEach(normalizeObra);
+    recalcParceirosTotals();
+    const t=OBRAS.length, co=OBRAS.filter(o=>o.status==='Finalizado').length, an=OBRAS.filter(o=>o.status==='Em andamento').length, pa=OBRAS.filter(o=>o.status==='Paralisada').length;
+    const recTot=OBRAS.reduce((s,o)=>s+Number(o.receita||0),0); const cstTot=OBRAS.reduce((s,o)=>s+Number(o.custo||0),0); const mcA=recTot>0?(recTot-cstTot)/recTot:0;
+    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+    set('kT',t); set('sbTotal',t); set('kRec',moneyShort(recTot)); set('kRecSub','MC média: '+(mcA*100).toFixed(1).replace('.',',')+'%');
+    set('kC',co); set('kCsub',t?Math.round(co/t*100)+'% do portfólio':'0% do portfólio');
+    set('kA',an); set('kAsub',t?Math.round(an/t*100)+'% do portfólio':'0% do portfólio');
+    set('kP',pa); set('kPsub',t?Math.round(pa/t*100)+'% do portfólio':'0% do portfólio');
+    set('sbParceiros',PARCEIROS.length);
+    const dBadge=document.getElementById('dBadge'); if(dBadge) dBadge.textContent='⏰ Atrasadas: '+OBRAS.filter(o=>String(o.statusPrazo||'').includes('ATRASADO')).length;
+    const dTable=document.getElementById('dTable'); if(dTable) dTable.innerHTML=OBRAS.filter(o=>o.status==='Em andamento').slice(0,15).map(o=>`<tr><td class="td-mono" style="font-weight:700">${o.idSite}</td><td style="font-size:11px;color:var(--txt3)">${o.idex}</td><td><strong>${o.cliente}</strong></td><td style="font-size:11px">${o.cidade}/${o.uf}</td><td style="font-size:11.5px;max-width:160px;white-space:normal;line-height:1.4">${o.etapa}</td><td style="font-size:11px">${o.planejador}</td><td style="font-size:11px">${moneyText(o.receita)}</td><td>${MC(o.mc)}</td><td>${bdg(o.statusPrazo)}</td></tr>`).join('');
+    drawDash(); drawDashExtra();
+  };
+
+  window.expCSV = function(){
+    const h='ID Site,IDEX,Cliente,Cidade,UF,Planejador,Analista,Etapa,Status,Receita,Custo,Lucro,MC,Prazo\n';
+    const rows=(window.filtered||OBRAS).map(o=>[o.idSite,o.idex,o.cliente,o.cidade,o.uf,o.planejador,o.analista,`"${o.etapa}"`,o.status,o.receita,o.custo,o.lucro,(Number(o.mc||0)*100).toFixed(1)+'%',o.statusPrazo].join(',')).join('\n');
+    const b=new Blob(['\ufeff'+h+rows],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contel_obras.csv';a.click();
+  };
+
+  // normaliza dados já carregados após o load original
+  setTimeout(()=>{ try{ refreshAll(); }catch(e){ console.warn('Patch refresh error', e); } }, 500);
+})();
+</script>
+
 </body>
 </html>
