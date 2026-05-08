@@ -609,7 +609,13 @@ function gc(id){
     <div class="panel">
       <div class="ph">
         <div class="ph-title" id="oCount">200 obras</div>
-        <div class="ph-tags"><button class="btn btn-ghost btn-sm" onclick="expCSV()">⬇ CSV</button></div>
+        <div class="ph-tags">
+          <button class="btn btn-ghost btn-sm" onclick="expCSV()">⬇ CSV</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="Importar planilha CONTEL_GERENCIAMENTO.xlsx">
+            📥 Importar Planilha
+            <input type="file" accept=".xlsx,.xls" onchange="importarPlanilha(this)" style="display:none">
+          </label>
+        </div>
       </div>
       <div class="table-wrap"><table>
         <thead><tr>
@@ -2084,5 +2090,173 @@ function renderEstoqueModal(estoque){
     </div>
   </div>
 </div>
+<!-- Modal de importação da planilha -->
+<div class="modal" id="mImport" style="display:none">
+  <div class="mc" style="max-width:560px">
+    <div class="mh"><span id="mImportTitle">📥 Importar Planilha</span><button class="close-btn" onclick="closeM('mImport')">✕</button></div>
+    <div id="mImportBody" style="padding:16px 20px;max-height:60vh;overflow-y:auto"></div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeM('mImport')">Cancelar</button>
+      <button class="btn btn-primary" id="btnConfirmImport" onclick="confirmarImport()" style="display:none">✅ Importar obras</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ── IMPORTAR PLANILHA CONTEL_GERENCIAMENTO ─────────────────────────────────
+let _importData = [];
+
+async function importarPlanilha(input){
+  const file = input.files[0];
+  input.value = '';
+  if(!file) return;
+
+  const body = document.getElementById('mImportBody');
+  body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--txt3)">⏳ Lendo planilha...</div>';
+  document.getElementById('btnConfirmImport').style.display = 'none';
+  document.getElementById('mImport').style.display = 'flex';
+  _importData = [];
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+
+    // Ler aba PLANEJAMENTO
+    const wsPlan = wb.Sheets['PLANEJAMENTO'];
+    if(!wsPlan){ body.innerHTML='<div style="color:red;padding:20px">❌ Aba "PLANEJAMENTO" não encontrada na planilha.</div>'; return; }
+    const planRows = XLSX.utils.sheet_to_json(wsPlan, {defval:''});
+
+    // Ler aba EQUIPE (parceiros por obra)
+    const wsEquipe = wb.Sheets['EQUIPE'];
+    const equipeMap = {};
+    if(wsEquipe){
+      const equipeRows = XLSX.utils.sheet_to_json(wsEquipe, {defval:''});
+      equipeRows.forEach(r => {
+        const id = (r['ID SITE']||'').toString().trim();
+        if(!id) return;
+        const equipes = [];
+        for(let i=1;i<=6;i++){
+          const nome = (r[`EQUIPE ${i}`]||r[`EQUIPE ${i} `]||'').toString().trim();
+          const valor = parseFloat(r[`VALOR${i}`])||0;
+          if(nome && valor > 0) equipes.push({nome, valor});
+        }
+        equipeMap[id] = equipes;
+      });
+    }
+
+    // Mapear colunas
+    const novas = [];
+    const jaExistentes = [];
+    const idexExistentes = new Set(OBRAS.map(o=>o.idex));
+    const idSiteExistentes = new Set(OBRAS.map(o=>o.idSite));
+
+    planRows.forEach(r => {
+      const idSite = (r['ID SITE']||'').toString().trim();
+      const idex   = (r['IDEX CONTEL']||'').toString().trim();
+      if(!idSite) return;
+
+      if(idSiteExistentes.has(idSite) || idexExistentes.has(idex)){
+        jaExistentes.push(idSite);
+        return;
+      }
+
+      const receita  = parseFloat(r['ORÇAMENTO (RECEITA) (R$)'])||0;
+      const custo    = parseFloat(r['CUSTOS TOTAIS (R$)'])||0;
+      const lucro    = parseFloat(r['LUCRO (R$)'])||0;
+      const mc       = parseFloat(r['M.C%'])||0;
+      const material = parseFloat(r['MATERIAL'])||0;
+      const demais   = parseFloat(r['FRETE/DEMAIS ITENS'])||0;
+      const empreita = parseFloat(r['VALOR EMPREITA'])||0;
+      const etapa    = (r['ETAPA ']||r['ETAPA']||'').toString().trim();
+      const status   = (r['STATUS']||'Em andamento').toString().trim();
+      const viab     = (r['STATUS VIABILIDADE']||'').toString();
+      const prazo    = (r['STATUS PRAZO']||'').toString();
+
+      // Montar parceiros a partir da aba EQUIPE
+      const equipes = equipeMap[idSite]||[];
+      const parceirosList = equipes.map(e => {
+        // Tentar vincular ao parceiro já cadastrado pelo nome
+        const p = PARCEIROS.find(x => x.nome.toLowerCase()===e.nome.toLowerCase());
+        return { id: p?p.id:('ext_'+Date.now()+Math.random()), nome: e.nome, valor: e.valor };
+      });
+
+      const bdi = receita * 0.18;
+      novas.push({
+        idSite, idex,
+        cliente: (r['CLIENTE']||'').toString().trim(),
+        cidade:  (r['CIDADE']||'').toString().trim(),
+        uf:      (r['ESTADO']||'').toString().trim(),
+        sienge:  (r['SIENGE']||'').toString().trim(),
+        os:      (r['OS TOWER SYSTEM']||'').toString().trim(),
+        planejador: (r['PLANEJADOR OBRA']||'').toString().trim(),
+        analista:   (r['ANALISTA CONTEL']||'').toString().trim(),
+        maps:    (r['LOCALIZAÇÃO']||'').toString().trim(),
+        material, demais, logistica: 0, bdi,
+        receita, custo, lucro, mc,
+        viabilidade: viab||( mc>=0.30?'✅ Viável — Fechar Parceiro':mc>=0.15?'⚠️ Ajustar Custos':mc>=0?'❌ Crítico (<15%)':'🚫 Inviável (prejuízo)' ),
+        etapa: etapa||'Abertura de obra',
+        status,
+        statusPrazo: prazo||( status==='Finalizado'?'✅ CONCLUÍDO':status==='Paralisada'?'⚠️ PARALISADO':status==='Cancelada'?'🚫CANCELADO':'🕓 EM ANDAMENTO' ),
+        parceiros: parceirosList,
+        estoque: null,
+      });
+    });
+
+    _importData = novas;
+
+    // Mostrar prévia
+    let html = '';
+    if(novas.length === 0 && jaExistentes.length === 0){
+      html = '<div style="color:var(--txt3);padding:20px;text-align:center">Nenhuma obra nova encontrada na planilha.</div>';
+    } else {
+      if(jaExistentes.length > 0){
+        html += `<div style="background:var(--surface2);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--txt2)">
+          ⚠️ <strong>${jaExistentes.length} obra(s)</strong> já existem e serão ignoradas: ${jaExistentes.slice(0,5).join(', ')}${jaExistentes.length>5?'...':''}
+        </div>`;
+      }
+      if(novas.length > 0){
+        html += `<div style="margin-bottom:12px;font-weight:600;color:var(--green)">✅ ${novas.length} obras novas para importar:</div>`;
+        html += '<div style="display:flex;flex-direction:column;gap:6px">';
+        novas.slice(0,20).forEach(o => {
+          html += `<div style="display:grid;grid-template-columns:110px 70px 1fr auto;gap:8px;align-items:center;background:var(--surface2);border-radius:6px;padding:8px 12px;font-size:12px">
+            <span style="font-weight:600">${o.idSite}</span>
+            <span style="color:var(--txt3)">${o.cliente}</span>
+            <span style="color:var(--txt3)">${o.cidade}/${o.uf}</span>
+            <span style="color:var(--${o.status==='Finalizado'?'green':o.status==='Paralisada'?'amber':'blue'})">${o.status}</span>
+          </div>`;
+        });
+        if(novas.length > 20) html += `<div style="text-align:center;color:var(--txt3);font-size:12px;padding:8px">... e mais ${novas.length-20} obras</div>`;
+        html += '</div>';
+      }
+    }
+    body.innerHTML = html;
+    if(novas.length > 0) document.getElementById('btnConfirmImport').style.display = 'inline-flex';
+
+  } catch(e) {
+    console.error(e);
+    body.innerHTML = `<div style="color:red;padding:20px">❌ Erro ao ler planilha: ${e.message}</div>`;
+  }
+}
+
+async function confirmarImport(){
+  if(!_importData.length) return;
+  // Adicionar parceiros novos ao cadastro
+  _importData.forEach(obra => {
+    obra.parceiros.forEach(p => {
+      if(!PARCEIROS.find(x => x.nome.toLowerCase()===p.nome.toLowerCase())){
+        PARCEIROS.push({id:p.id, nome:p.nome, tipo:'Empresa', esp:'Telecom', uf:'', obras:0, total:0, tags:[]});
+      }
+    });
+    OBRAS.unshift(obra);
+  });
+  filtered = [...OBRAS];
+  saveData();
+  requestAnimationFrame(initDash);
+  closeM('mImport');
+  toast(`✅ ${_importData.length} obras importadas com sucesso!`);
+  _importData = [];
+}
+</script>
 </body>
 </html>
