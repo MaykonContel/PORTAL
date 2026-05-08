@@ -224,7 +224,7 @@ tbody tr:hover td{background:var(--surface2);}
 const CHART_COLORS = ['#2563eb','#059669','#7c3aed','#d97706','#0891b2','#dc2626','#db2777','#0d9488','#ea580c','#65a30d','#6366f1','#f43f5e'];
 const CHART_COLORS_ALPHA = (hex,a) => {const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;};
 
-function drawBarChart(canvasId, {labels, datasets, horizontal=false, showLegend=true, yFormat=v=>v, maxVal=null, colorsPerBar=null, showValues=true, labelMax=12}){
+function drawBarChart(canvasId, {labels, datasets, horizontal=false, showLegend=true, yFormat=v=>v, maxVal=null, colorsPerBar=null}){
   const el = document.getElementById(canvasId); if(!el) return;
   const rect=el.getBoundingClientRect();const W=rect.width>10?rect.width:(el.parentElement?.getBoundingClientRect().width||500);
   const H = el.offsetHeight||260;
@@ -299,12 +299,6 @@ function drawBarChart(canvasId, {labels, datasets, horizontal=false, showLegend=
         const rr=Math.min(4,barW/2);
         roundRect(ctx, x, y0, barW, actualH, rr);
         ctx.fill();
-        if(showValues && Math.abs(v)>0){
-          ctx.fillStyle='#0f172a';
-          ctx.font='bold 9px Inter,sans-serif';
-          ctx.textAlign='center';
-          ctx.fillText(yFormat(v), x+barW/2, y0-4);
-        }
       }
     });
   });
@@ -315,19 +309,15 @@ function drawBarChart(canvasId, {labels, datasets, horizontal=false, showLegend=
     labels.forEach((lbl,i)=>{
       const y=padT+i*groupW+groupW/2;
       ctx.font='10px Inter,sans-serif';ctx.textAlign='right';
-      ctx.fillText(String(lbl).length>labelMax?String(lbl).substring(0,labelMax)+'…':lbl, padL-6, y+3);
+      ctx.fillText(String(lbl).length>16?String(lbl).substring(0,16)+'…':lbl, padL-6, y+3);
     });
   } else {
     labels.forEach((lbl,i)=>{
       const x=padL+(i+0.5)*groupW;
-      const txt=String(lbl);
-      ctx.font='10px Inter,sans-serif';
-      ctx.textAlign='right';
-      ctx.save();
-      ctx.translate(x, padT+cH+22);
-      ctx.rotate(-Math.PI/5);
-      ctx.fillText(txt.length>labelMax?txt.substring(0,labelMax)+'…':txt,0,0);
-      ctx.restore();
+      const lines=String(lbl).split(' ');
+      ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(lines[0],x,padT+cH+14);
+      if(lines[1]) ctx.fillText(lines[1],x,padT+cH+25);
     });
   }
 }
@@ -895,7 +885,7 @@ function gc(id){
           <select class="fselect" id="pn_tipo"><option>Pessoa Física</option><option>Empresa</option><option>CLT</option><option>Cooperativa</option></select>
         </div>
         <div class="fg"><label class="flbl">Especialidade</label>
-          <select class="fselect" id="pn_esp" data-esp-select="1" onchange="handleEspecialidadeChange(this)"><option>Geral</option><option value="__nova__">+ Nova especialidade...</option></select>
+          <select class="fselect" id="pn_esp"><option>Montagem de torres</option><option>Instalação elétrica</option><option>Fundação / Civil</option><option>Homologação</option><option>Fabricação metálica</option><option>Geral</option></select>
         </div>
       </div>
       <div class="fg2">
@@ -985,84 +975,8 @@ const ini=n=>n.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase();
 const AVC=['#2563eb','#059669','#7c3aed','#d97706','#0891b2','#dc2626','#db2777'];
 const avc=n=>AVC[n.charCodeAt(0)%AVC.length];
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-
-function closeImportModal(){
-  const m=document.getElementById('mImport');
-  if(m){
-    m.classList.remove('open');
-    m.style.display='none';
-  }
-}
-
 function closeM(id){document.getElementById(id).classList.remove('open');}
 function openM(id){document.getElementById(id).classList.add('open');}
-
-
-// ============================================================
-// ESPECIALIDADES DINÂMICAS
-// ============================================================
-const DEFAULT_ESPECIALIDADES = [
-  'Montagem de torres',
-  'Instalação elétrica',
-  'Fundação / Civil',
-  'Homologação',
-  'Fabricação metálica',
-  'Logística',
-  'Projeto',
-  'Survey',
-  'Geral'
-];
-
-function getEspecialidades(){
-  try{
-    const saved = JSON.parse(localStorage.getItem('contel_especialidades') || '[]');
-    return [...new Set([...DEFAULT_ESPECIALIDADES, ...(Array.isArray(saved)?saved:[])])]
-      .filter(Boolean)
-      .sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  }catch(e){
-    return [...DEFAULT_ESPECIALIDADES].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  }
-}
-
-function saveEspecialidades(list){
-  const clean = [...new Set((list||[]).map(x=>String(x||'').trim()).filter(Boolean))];
-  localStorage.setItem('contel_especialidades', JSON.stringify(clean));
-}
-
-function addEspecialidade(nome){
-  nome = String(nome||'').trim();
-  if(!nome) return '';
-  const atual = getEspecialidades();
-  if(!atual.some(x=>x.toLowerCase()===nome.toLowerCase())){
-    atual.push(nome);
-    saveEspecialidades(atual);
-  }
-  populateEspecialidades(nome);
-  return nome;
-}
-
-function populateEspecialidades(selected=''){
-  const opts = getEspecialidades()
-    .map(e=>`<option value="${e}" ${e===selected?'selected':''}>${e}</option>`)
-    .join('');
-
-  document.querySelectorAll('select[data-esp-select="1"], #pn_esp').forEach(sel=>{
-    const val = selected || sel.value || '';
-    sel.innerHTML = opts + '<option value="__nova__">+ Nova especialidade...</option>';
-    if(val && [...sel.options].some(o=>o.value===val)) sel.value = val;
-  });
-}
-
-function handleEspecialidadeChange(sel){
-  if(!sel || sel.value !== '__nova__') return;
-  const nome = prompt('Digite a nova especialidade:');
-  if(nome && nome.trim()){
-    addEspecialidade(nome.trim());
-    sel.value = nome.trim();
-  }else{
-    sel.value = 'Geral';
-  }
-}
 
 // NAV
 const TITLES={dashboard:'Dashboard',obras:'Todas as Obras',nova:'Nova Obra',kanban:'Pipeline Kanban',parceiros:'Parceiros & Equipes',clientes:'Clientes',financeiro:'Custos & Margens',busca:'Busca Rápida'};
@@ -1092,7 +1006,7 @@ function initSelects(){
   const pls=[...new Set(OBRAS.map(o=>o.planejador))].sort();
   ['fCli','kbCli'].forEach(id=>{const s=document.getElementById(id);clis.forEach(c=>s.innerHTML+=`<option>${c}</option>`);});
   ['fPl','kbPl'].forEach(id=>{const s=document.getElementById(id);pls.forEach(p=>s.innerHTML+=`<option>${p}</option>`);});
-  populatePSel();populateEspecialidades();
+  populatePSel();
 }
 function populatePSel(){
   const opts=PARCEIROS.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
@@ -1347,111 +1261,479 @@ function renderAlertasReais(){
 }
 
 
-
-
-function renderEtapasReais(getAvanco){
-  const etapasBase = ['Abertura de obra','Projeto','Compra de material','Fabricação / Galvanização','Envio de material','Execução','Homologação','Finalizado'];
-  const total = Math.max((OBRAS||[]).length,1);
-  const counts = {};
-  (OBRAS||[]).forEach(o=>{
-    const etapas = String(o.etapa||'Abertura de obra').split(',').map(e=>e.trim()).filter(Boolean);
-    const atual = o.status==='Finalizado'?'Finalizado':(etapas[etapas.length-1]||'Abertura de obra');
-    counts[atual]=(counts[atual]||0)+1;
-  });
-  const html = etapasBase.map(e=>{
-    const qtd = Number(counts[e]||0);
-    const pct = Math.round(qtd/total*100);
-    return `<div>
-      <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:5px">
-        <span style="font-size:12px;font-weight:600;color:var(--txt)">${e}</span>
-        <span style="font-size:11px;color:var(--txt3)">${qtd} obra(s) · ${pct}%</span>
-      </div>
-      <div class="pbar"><div class="pfill" style="width:${pct}%;background:${pct>=60?'var(--green)':pct>=25?'var(--blue)':'var(--amber)'}"></div></div>
-    </div>`;
-  }).join('');
-  const el=document.getElementById('dEtapas');
-  if(el) el.innerHTML=html;
-}
-
 function drawDash(){
-  const obrasValidas = (OBRAS||[]).filter(o=>o && o.cliente);
-
-  // Chart 1: Top clientes por quantidade — horizontal para caber os nomes
-  const cc={};
-  obrasValidas.forEach(o=>{
-    const cli = String(o.cliente||'Sem cliente').trim();
-    cc[cli]=(Number(cc[cli])||0)+1;
-  });
-  const cs=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  // Chart 1: Obras por cliente (bar)
+  const cc={};OBRAS.forEach(o=>{cc[o.cliente]=(cc[o.cliente]||0)+1;});
+  const cs=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,12);
   drawBarChart('cClientes',{
     labels:cs.map(c=>c[0]),
-    datasets:[{label:'Obras',data:cs.map(c=>Number(c[1]||0)),color:'#2563eb'}],
-    horizontal:true,
-    showLegend:false,
-    yFormat:v=>Math.round(v),
-    labelMax:20
+    datasets:[{label:'Obras',data:cs.map(c=>c[1]),color:'rgba(37,99,235,.8)'}],
+    showLegend:false, yFormat:v=>Math.round(v)
   });
 
-  // Chart 2: Status portfólio
-  const sc={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0,'Não iniciada':0};
-  obrasValidas.forEach(o=>{
-    const st = sc.hasOwnProperty(o.status) ? o.status : 'Não iniciada';
-    sc[st]++;
-  });
+  // Chart 2: Status portfólio (donut)
+  const sc={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0};
+  OBRAS.forEach(o=>{const k=['Finalizado','Em andamento','Paralisada','Cancelada'].includes(o.status)?o.status:'Cancelada';sc[k]++;});
   drawDonutChart('cStatus',{
     labels:Object.keys(sc),
-    data:Object.values(sc).map(v=>Number(v||0)),
-    colors:['#059669','#2563eb','#d97706','#94a3b8','#cbd5e1']
+    data:Object.values(sc),
+    colors:['#059669','#2563eb','#d97706','#94a3b8']
   });
 
-  // Chart 3: Margem por cliente — calcula ponderado por receita
-  const cm={};
-  obrasValidas.forEach(o=>{
-    const cli=String(o.cliente||'Sem cliente').trim();
-    const rec=Number(o.receita||0);
-    const lucro=Number(o.lucro||0);
-    if(rec>0){
-      if(!cm[cli]) cm[cli]={rec:0,lucro:0};
-      cm[cli].rec += rec;
-      cm[cli].lucro += lucro;
-    }
-  });
-  const ca=Object.entries(cm)
-    .map(([k,v])=>({k,avg:v.rec>0?v.lucro/v.rec:0,rec:v.rec}))
-    .filter(x=>isFinite(x.avg))
-    .sort((a,b)=>b.rec-a.rec)
-    .slice(0,10);
-
+  // Chart 3: Margem por cliente (bar)
+  const cm={};OBRAS.forEach(o=>{if(!cm[o.cliente])cm[o.cliente]=[];if(o.receita>0)cm[o.cliente].push(o.mc);});
+  const ca=Object.entries(cm).filter(([k,v])=>v.length>0).map(([k,v])=>({k,avg:v.reduce((a,b)=>a+b,0)/v.length})).sort((a,b)=>b.avg-a.avg).slice(0,12);
   drawBarChart('cMargem',{
     labels:ca.map(c=>c.k),
-    datasets:[{label:'MC%',data:ca.map(c=>Number((c.avg*100).toFixed(1))),color:'#059669'}],
-    horizontal:true,
-    showLegend:false,
-    yFormat:v=>v.toFixed ? v.toFixed(1)+'%' : v+'%',
-    colorsPerBar:ca.map(c=>c.avg>=0.30?'#059669':c.avg>=0.15?'#d97706':'#dc2626'),
-    labelMax:20
+    datasets:[{label:'MC%',data:ca.map(c=>+(c.avg*100).toFixed(1)),color:null}],
+    showLegend:false, yFormat:v=>v+'%',
+    colorsPerBar:ca.map(c=>c.avg>=0.3?'rgba(5,150,105,.8)':c.avg>=0.15?'rgba(217,119,6,.8)':'rgba(220,38,38,.8)')
   });
 
-  // Chart 4: Etapas de obras em andamento
-  const ec={};
-  obrasValidas
-    .filter(o=>o.status==='Em andamento')
-    .forEach(o=>{
-      const etapas = String(o.etapa||'Sem etapa').split(',').map(e=>e.trim()).filter(Boolean);
-      const etapa = etapas.length ? etapas[etapas.length-1] : 'Sem etapa';
-      ec[etapa]=(Number(ec[etapa])||0)+1;
-    });
-  const es=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  // Chart 4: Etapas em andamento (horizontal bar)
+  const ec={};OBRAS.filter(o=>o.status==='Em andamento').forEach(o=>{const e=o.etapa.split(',')[0].trim();ec[e]=(ec[e]||0)+1;});
+  const es=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,9);
   drawBarChart('cEtapa',{
-    labels:es.map(e=>e[0]),
-    datasets:[{label:'Obras',data:es.map(e=>Number(e[1]||0)),color:'#7c3aed'}],
-    horizontal:true,
-    showLegend:false,
-    yFormat:v=>Math.round(v),
-    labelMax:24
+    labels:es.map(e=>e[0].length>20?e[0].substring(0,20)+'…':e[0]),
+    datasets:[{label:'Obras',data:es.map(e=>e[1]),color:'rgba(124,58,237,.8)'}],
+    horizontal:true, showLegend:false, yFormat:v=>Math.round(v)
   });
 }
 
+function initDash(){
+  const t=OBRAS.length,co=OBRAS.filter(o=>o.status==='Finalizado').length,an=OBRAS.filter(o=>o.status==='Em andamento').length,pa=OBRAS.filter(o=>o.status==='Paralisada').length;
+  document.getElementById('kT').textContent=t;document.getElementById('sbTotal').textContent=t;
+  // Update receita KPI
+  const recTot=OBRAS.reduce((s,o)=>s+(o.receita||0),0);
+  const mcTot=OBRAS.filter(o=>o.receita>0).map(o=>o.mc);
+  const mcA=mcTot.length?mcTot.reduce((a,b)=>a+b,0)/mcTot.length:0;
+  const fmtR=v=>v>=1000000?'R$ '+(v/1000000).toFixed(1)+'M':v>=1000?'R$ '+(v/1000).toFixed(0)+'k':'R$ '+Math.round(v).toLocaleString('pt-BR');
+  const el_k=document.getElementById('kRec');if(el_k)el_k.textContent=recTot>0?fmtR(recTot):'R$ 0';
+  const el_ks=document.getElementById('kRecSub');if(el_ks)el_ks.textContent='MC média: '+(mcTot.length?(mcA*100).toFixed(1)+'%':'—');
+  document.getElementById('kC').textContent=co;document.getElementById('kCsub').textContent=Math.round(co/t*100)+'% do portfólio';
+  document.getElementById('kA').textContent=an;document.getElementById('kAsub').textContent=Math.round(an/t*100)+'% do portfólio';
+  document.getElementById('kP').textContent=pa;document.getElementById('kPsub').textContent=Math.round(pa/t*100)+'% do portfólio';
+  document.getElementById('dBadge').textContent='⏰ Atrasadas: '+OBRAS.filter(o=>o.statusPrazo==='⏰ ATRASADO').length;
+  document.getElementById('dTable').innerHTML=OBRAS.filter(o=>o.status==='Em andamento').slice(0,15).map(o=>`
+    <tr>
+      <td class="td-mono" style="font-weight:700">${o.idSite}</td>
+      <td style="font-size:11px;color:var(--txt3)">${o.idex}</td>
+      <td><strong>${o.cliente}</strong></td>
+      <td style="font-size:11px">${o.cidade}/${o.uf}</td>
+      <td style="font-size:11.5px;max-width:160px;white-space:normal;line-height:1.4">${o.etapa}</td>
+      <td style="font-size:11px">${o.planejador}</td>
+      <td style="font-size:11px">${R$(o.receita)}</td>
+      <td>${MC(o.mc)}</td><td>${bdg(o.statusPrazo)}</td>
+    </tr>`).join('');
+  drawDash();drawDashExtra();
+}
+
+// OBRAS TABLE
+function filtrar(){
+  const q=document.getElementById('qObras').value.toLowerCase();
+  const cli=document.getElementById('fCli').value,st=document.getElementById('fSt').value,pl=document.getElementById('fPl').value;
+  filtered=OBRAS.filter(o=>{
+    const m=!q||[o.idSite,o.idex,o.cliente,o.cidade,o.uf,o.planejador,o.analista,o.etapa].join(' ').toLowerCase().includes(q);
+    return m&&(!cli||o.cliente===cli)&&(!st||o.status===st)&&(!pl||o.planejador===pl);
+  });
+  renderObras();
+}
+function sortBy(f){if(sortF===f)sortD*=-1;else{sortF=f;sortD=1;}filtered.sort((a,b)=>typeof a[f]==='string'?a[f].localeCompare(b[f])*sortD:(a[f]-b[f])*sortD);renderObras();}
+function renderObras(){
+  document.getElementById('oCount').textContent=filtered.length+' obras';
+  document.getElementById('oTable').innerHTML=filtered.map(o=>`
+    <tr>
+      <td class="td-mono" style="font-weight:700">${o.idSite}</td>
+      <td style="font-size:11px;color:var(--txt3)">${o.idex}</td>
+      <td><strong>${o.cliente}</strong></td>
+      <td style="font-size:11px">${o.cidade}/${o.uf}</td>
+      <td style="font-size:11px;max-width:150px;white-space:normal;line-height:1.4">${o.etapa||'—'}</td>
+      <td style="font-size:11px">${o.planejador}</td>
+      <td style="font-size:11px">${R$(o.receita)}</td>
+      <td>${MC(o.mc)}</td><td>${bdg(o.statusPrazo)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-xs" onclick="openObraModal('${o.idex}')">✏️</button>
+        ${o.maps?`<a href="${o.maps}" target="_blank" class="btn btn-ghost btn-xs" style="text-decoration:none">📍</a>`:''}
+      </td>
+    </tr>`).join('');
+}
+
+// MODAL OBRA
+function openObraModal(idex){
+  const o=OBRAS.find(x=>x.idex===idex);if(!o)return;
+  document.getElementById('mObraT').textContent=o.idSite+' · '+o.cliente;
+  document.getElementById('mObraS').textContent=o.cidade+'/'+o.uf+' · '+o.idex;
+  const etAtivas=o.etapa?o.etapa.split(',').map(e=>e.trim()):[];
+  const flow=ETAPAS.map((et,i)=>{
+    const curr=etAtivas.includes(et),done=et==='Finalizado'&&o.status==='Finalizado';
+    const cls=done?'done':curr?'curr':'pend';
+    return `<div class="ef-step ${cls}"><div class="ef-dot">${i+1}</div><div class="ef-lbl">${et}</div></div>`;
+  }).join('');
+  // Build etapas timeline for this obra
+  // (etAtivas already declared above)
+  // Curva S individual — simula com base no status da obra
+  const isConc=o.status==='Finalizado';
+  const csLabels=['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12'];
+  // Planejado cresce de forma S
+  const csPlanned=csLabels.map((_,i)=>{const t=i/11;return +(100*(3*t*t-2*t*t*t)).toFixed(1);});
+  // Realizado: até onde a obra está (baseado na etapa atual)
+  const etProgress={'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execução':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100,'Paralisada':null,'Cancelada':null};
+  const progAtual = isConc ? 100 : (etProgress[etAtivas[0]] || 10);
+  const breakPoint=Math.round(progAtual/100*12);
+  const csReal=csLabels.map((_,i)=>{if(i>breakPoint)return null;const t=i/11;return +(progAtual*(3*t*t-2*t*t*t)).toFixed(1);});
+  const mcPct=(o.mc||0)*100;
+  const mcColor=mcPct>=30?'#059669':mcPct>=15?'#d97706':'#dc2626';
+
+  document.getElementById('mObraB').innerHTML=`
+    <!-- PIPELINE -->
+    <div style="background:var(--surface2);border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;padding:12px 20px 8px">Pipeline de etapas</div>
+      <div class="etapa-flow">${flow}</div>
+    </div>
+
+    <!-- KPIs da obra -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
+      <div style="padding:14px 18px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Receita</div>
+        <div style="font-family:var(--font2);font-size:17px;font-weight:700;color:var(--blue)">${R$(o.receita)}</div>
+      </div>
+      <div style="padding:14px 18px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Custo</div>
+        <div style="font-family:var(--font2);font-size:17px;font-weight:700;color:var(--amber)">${R$(o.custo)}</div>
+      </div>
+      <div style="padding:14px 18px;border-right:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Lucro</div>
+        <div style="font-family:var(--font2);font-size:17px;font-weight:700;color:${o.lucro>=0?'var(--green)':'var(--red)'}">${R$(o.lucro)}</div>
+      </div>
+      <div style="padding:14px 18px">
+        <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">MC%</div>
+        <div style="font-family:var(--font2);font-size:17px;font-weight:700;color:${mcColor}">${mcPct.toFixed(1)}%</div>
+      </div>
+    </div>
+
+    <!-- CURVA S individual + Alertas -->
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+      <div style="padding:16px 20px;border-right:1px solid var(--border)">
+        <div style="font-size:11.5px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+          Curva S — Avanço físico
+          <span class="badge ${isConc?'b-green':'b-blue'}">${isConc?'Concluída':'Em execução'}</span>
+        </div>
+        <div style="font-size:10.5px;color:var(--txt3);margin-bottom:12px">Progresso estimado: ${progAtual}%</div>
+        <div style="position:relative;height:160px"><canvas id="modalCurvaS"></canvas></div>
+      </div>
+      <div style="padding:16px 20px">
+        <div style="font-size:11.5px;font-weight:700;margin-bottom:12px">Alertas desta obra</div>
+        <div id="modalAlertas" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+
+    <!-- ESTOQUE -->
+    ${o.estoque&&o.estoque.insumos&&o.estoque.insumos.length>0?`
+    <div style="border-bottom:1px solid var(--border)">
+      <div style="padding:12px 20px 8px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:11.5px;font-weight:700">📦 Posição de estoque <span style="font-size:10px;color:var(--txt3);font-weight:400">${o.estoque.obraId||''}</span></div>
+        <span style="font-size:10.5px;color:var(--blue);font-weight:600">${o.estoque.insumos.length} insumos · R$ ${o.estoque.totalObra.toFixed(2)}</span>
+      </div>
+      <div style="padding:0 20px 14px">${renderEstoqueModal(o.estoque)}</div>
+    </div>`:''}
+
+    <!-- FORM edição -->
+    <div style="padding:20px 24px">
+      <div style="font-size:10.5px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px">Editar dados da obra</div>
+      <div class="fg2"><div class="fg"><label class="flbl">ID Site</label><input class="finput" id="e_id" value="${o.idSite}"></div><div class="fg"><label class="flbl">Cliente</label><input class="finput" id="e_cli" value="${o.cliente}"></div></div>
+      <div class="fg3"><div class="fg"><label class="flbl">Cidade</label><input class="finput" id="e_cid" value="${o.cidade}"></div><div class="fg"><label class="flbl">UF</label><input class="finput" id="e_uf" value="${o.uf}"></div><div class="fg"><label class="flbl">Planejador</label><input class="finput" id="e_pl" value="${o.planejador}"></div></div>
+      <div class="fg3"><div class="fg"><label class="flbl">Receita R$</label><input class="finput" type="number" id="e_rec" value="${o.receita}" oninput="calcE()"></div><div class="fg"><label class="flbl">Custo R$</label><input class="finput" type="number" id="e_cst" value="${o.custo}" oninput="calcE()"></div><div class="fg"><label class="flbl">MC%</label><input class="finput" id="e_mc" readonly value="${mcPct.toFixed(1)}%"></div></div>
+      <div class="fg2"><div class="fg"><label class="flbl">Status</label><select class="fselect" id="e_st">${['Em andamento','Finalizado','Paralisada','Cancelada','Não iniciada'].map(s=>`<option${o.status===s?' selected':''}>${s}</option>`).join('')}</select></div><div class="fg"><label class="flbl">Etapa atual</label><input class="finput" id="e_et" value="${o.etapa}"></div></div>
+      <div class="fg2"><div class="fg"><label class="flbl">Sienge</label><input class="finput" id="e_sie" value="${o.sienge}"></div><div class="fg"><label class="flbl">OS Tower System</label><input class="finput" id="e_os" value="${o.os}"></div></div>
+      <div class="fg1"><div class="fg"><label class="flbl">Google Maps</label><input class="finput" id="e_maps" value="${o.maps||''}"></div></div>
+    </div>
+    <input type="hidden" id="e_idex" value="${o.idex}">
+  `;
+  openM('mObra');
+
+  // Draw Curva S after modal opens
+  setTimeout(()=>{
+    drawLineChart('modalCurvaS',{
+      labels:csLabels,
+      datasets:[
+        {label:'Planejado',data:csPlanned,color:'#3b82f6',width:2.5,noDots:true},
+        {label:'Realizado',data:csReal,  color:'#10b981',width:3},
+      ],
+      yFormat:v=>v+'%', yMin:0, yMax:105
+    });
+
+    // Alertas da obra
+    const oAlertas=[];
+    if(o.statusPrazo==='⏰ ATRASADO') oAlertas.push({tipo:'red',txt:'Obra com atraso no prazo'});
+    if(o.status==='Paralisada') oAlertas.push({tipo:'amber',txt:'Obra paralisada — verificar motivo'});
+    if(o.mc<0) oAlertas.push({tipo:'red',txt:'MC% negativa: '+((o.mc||0)*100).toFixed(1)+'%'});
+    else if(o.mc<0.15) oAlertas.push({tipo:'amber',txt:'MC% crítica: '+((o.mc||0)*100).toFixed(1)+'% (meta: >20%)'});
+    if(!o.maps) oAlertas.push({tipo:'blue',txt:'Localização não cadastrada'});
+    if(!o.sienge) oAlertas.push({tipo:'blue',txt:'Código Sienge não preenchido'});
+    if(o.status==='Finalizado') oAlertas.push({tipo:'green',txt:'Obra concluída ✓'});
+    if(oAlertas.length===0) oAlertas.push({tipo:'green',txt:'Nenhuma pendência identificada'});
+    const ac={red:'#dc2626',amber:'#d97706',blue:'#2563eb',green:'#059669'};
+    const ab={red:'#fef2f2',amber:'#fffbeb',blue:'#eff6ff',green:'#ecfdf5'};
+    const ai={red:'🔴',amber:'🟡',blue:'🔵',green:'🟢'};
+    document.getElementById('modalAlertas').innerHTML=oAlertas.map(a=>`
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:9px 12px;background:${ab[a.tipo]};border-radius:var(--r);border-left:3px solid ${ac[a.tipo]}">
+        <span style="font-size:11px">${ai[a.tipo]}</span>
+        <span style="font-size:11.5px;font-weight:500;color:var(--txt)">${a.txt}</span>
+      </div>`).join('');
+  },80);
+}
+function calcE(){const r=parseFloat(document.getElementById('e_rec').value)||0,c=parseFloat(document.getElementById('e_cst').value)||0;document.getElementById('e_mc').value=r>0?((r-c)/r*100).toFixed(1)+'%':'—';}
+function saveEdit(){
+  const idex=document.getElementById('e_idex').value;const idx=OBRAS.findIndex(o=>o.idex===idex);if(idx<0)return;
+  const r=parseFloat(document.getElementById('e_rec').value)||0,c=parseFloat(document.getElementById('e_cst').value)||0;
+  OBRAS[idx]={...OBRAS[idx],idSite:document.getElementById('e_id').value,cliente:document.getElementById('e_cli').value,cidade:document.getElementById('e_cid').value,uf:document.getElementById('e_uf').value,planejador:document.getElementById('e_pl').value,receita:r,custo:c,lucro:r-c,mc:r>0?(r-c)/r:0,status:document.getElementById('e_st').value,etapa:document.getElementById('e_et').value,sienge:document.getElementById('e_sie').value,os:document.getElementById('e_os').value,maps:document.getElementById('e_maps').value};
+  closeM('mObra');filtered=[...OBRAS];filtrar();toast('✅ Obra atualizada');
+}
+
+// NOVA OBRA
+function addParcRow(){
+  const c=document.getElementById('parceirosCont');const n=c.querySelectorAll('.pr-row').length+1;
+  const row=document.createElement('div');row.className='pr-row';row.style.cssText='display:grid;grid-template-columns:1fr 140px 36px;gap:10px;margin-bottom:10px;align-items:end';
+  const opts=PARCEIROS.slice().sort((a,b)=>a.nome.localeCompare(b.nome)).map(p=>`<option value="${p.id}">${p.nome}</option>`).join('');
+  row.innerHTML=`<div class="fg"><label class="flbl">Parceiro ${n}</label><select class="fselect pnsel"><option value="">Selecione...</option>${opts}</select></div><div class="fg"><label class="flbl">Valor R$</label><input class="finput pnval" type="number" placeholder="0" oninput="calcFin()"></div><button class="btn btn-danger btn-xs" onclick="this.closest('.pr-row').remove();calcFin()">✕</button>`;
+  c.appendChild(row);
+}
+function nextIdex(){
+  // Generate next sequential IDEX
+  if(OBRAS.length===0) return 'contel-001';
+  const nums=OBRAS.map(o=>{
+    const m=o.idex.match(/(\d+)$/);
+    return m?parseInt(m[1]):0;
+  });
+  const next=Math.max(...nums,0)+1;
+  return 'contel-'+String(next).padStart(3,'0');
+}
+
+function calcStatusFromEtapas(){
+  const ativos=[...document.querySelectorAll('.ec.active')].map(el=>el.dataset.et);
+  let status='Em andamento';
+  if(ativos.includes('Cancelada')) status='Cancelada';
+  else if(ativos.includes('Paralisada')) status='Paralisada';
+  else if(ativos.includes('Finalizado')) status='Finalizado';
+  else if(ativos.length===0) status='Não iniciada';
+  // Update hidden input and display
+  const hidEl=document.getElementById('n_st');
+  if(hidEl) hidEl.value=status;
+  const dispEl=document.getElementById('n_st_display');
+  if(dispEl){
+    const stColors={Finalizado:'#059669','Em andamento':'#2563eb',Paralisada:'#d97706',Cancelada:'#94a3b8','Não iniciada':'#94a3b8'};
+    const stBg={Finalizado:'#ecfdf5','Em andamento':'#eff6ff',Paralisada:'#fffbeb',Cancelada:'var(--surface2)','Não iniciada':'var(--surface2)'};
+    dispEl.textContent=status;
+    dispEl.style.color=stColors[status]||'var(--txt3)';
+    dispEl.style.borderColor=stColors[status]||'var(--border)';
+    dispEl.style.background=stBg[status]||'var(--surface2)';
+  }
+  return status;
+}
+
+function calcFin(){
+  const m=parseFloat(document.getElementById('n_mat').value)||0;
+  const f=parseFloat(document.getElementById('n_fre').value)||0;
+  const logEl=document.getElementById('n_log');
+  const log=logEl?parseFloat(logEl.value)||0:0;
+  const r=parseFloat(document.getElementById('n_rec').value)||0;
+  // Sum all partner values
+  const parVals=[...document.querySelectorAll('.pnval')].reduce((s,el)=>s+(parseFloat(el.value)||0),0);
+  // BDI: 18% sobre o orçamento
+  const bdi=r*0.18;
+  const bdiEl=document.getElementById('n_bdi');
+  if(bdiEl) bdiEl.value=R$(bdi)+' (18% de '+R$(r)+')';
+  // Custo total
+  const cst=m+f+log+parVals+bdi;
+  const lc=r-cst;
+  const mcN=r>0?lc/r:null;
+  const mc=mcN!==null?(mcN*100).toFixed(1):'—';
+  document.getElementById('n_cst').value=R$(cst);
+  const mcEl=document.getElementById('n_mc');
+  mcEl.value=r>0?mc+'%  ·  Lucro: '+R$(lc):'Insira a receita';
+  mcEl.style.color=mcN===null?'var(--txt2)':mcN<0?'var(--red)':mcN<0.20?'var(--amber)':'var(--green)';
+  // Auto-calculate viabilidade
+  const vEl=document.getElementById('n_viab_display');
+  if(vEl && r>0 && mcN!==null){
+    if(mcN>=0.30){vEl.textContent='✅ Viável — Fechar Parceiro';vEl.style.color='#059669';vEl.style.borderColor='#a7f3d0';vEl.style.background='#ecfdf5';}
+    else if(mcN>=0.15){vEl.textContent='⚠️ Ajustar Custos (MC '+mc+'%)';vEl.style.color='#d97706';vEl.style.borderColor='#fde68a';vEl.style.background='#fffbeb';}
+    else if(mcN>=0){vEl.textContent='❌ Crítico — MC abaixo de 15%';vEl.style.color='#dc2626';vEl.style.borderColor='#fecaca';vEl.style.background='#fef2f2';}
+    else{vEl.textContent='🚫 Inviável — Prejuízo (MC '+mc+'%)';vEl.style.color='#dc2626';vEl.style.borderColor='#fecaca';vEl.style.background='#fef2f2';}
+  } else if(vEl){vEl.textContent='Preencha receita e custos';vEl.style.color='var(--txt3)';vEl.style.borderColor='var(--border)';vEl.style.background='var(--surface2)';}
+}
+function salvarObra(){
+  const id=document.getElementById('n_id').value.trim();
+  const idex=document.getElementById('n_idex').value.trim()||nextIdex();
+  const cli=document.getElementById('n_cli').value;
+  if(!id||!cli){toast('⚠️ Preencha ID Site e Cliente');return;}
+  if(OBRAS.find(o=>o.idex===idex||o.idSite===id)){toast('⚠️ ID Site já existe');return;}
+  const r=parseFloat(document.getElementById('n_rec').value)||0;
+  const m=parseFloat(document.getElementById('n_mat').value)||0;
+  const f=parseFloat(document.getElementById('n_fre').value)||0;
+  const logV=parseFloat(document.getElementById('n_log')?.value)||0;
+  const parVals=[...document.querySelectorAll('.pnval')].reduce((s,el)=>s+(parseFloat(el.value)||0),0);
+  const bdi=r*0.18;
+  const cst=m+f+logV+parVals+bdi;
+  const lc=r-cst;
+  const mc=r>0?lc/r:0;
+  const etapasSel=[...document.querySelectorAll('.ec.active')].map(el=>el.dataset.et).join(', ');
+  const status=document.getElementById('n_st')?.value||calcStatusFromEtapas();
+  const planejador=document.getElementById('n_pla').value;
+  const analista=document.getElementById('n_ana').value;
+  const parceirosList=[];
+  document.querySelectorAll('.pr-row').forEach(row=>{
+    const sel=row.querySelector('.pnsel');const val=row.querySelector('.pnval');
+    if(sel&&sel.value&&val&&parseFloat(val.value)>0){
+      const p=PARCEIROS.find(x=>x.id===sel.value);
+      if(p){parceirosList.push({id:p.id,nome:p.nome,valor:parseFloat(val.value)||0});p.obras++;p.total+=(parseFloat(val.value)||0);}
+    }
+  });
+  const obraData={
+    idSite:id, idex,
+    cliente:cli==='__novo__'?prompt('Nome do cliente:')||'NOVO':cli,
+    cidade:document.getElementById('n_cid').value,
+    uf:document.getElementById('n_uf').value,
+    sienge:document.getElementById('n_sie').value,
+    os:document.getElementById('n_os').value,
+    planejador, analista,
+    material:m, demais:f, logistica:logV, bdi,
+    receita:r, custo:cst, lucro:lc, mc,
+    viabilidade:mc>=0.30?'✅ Viável — Fechar Parceiro':mc>=0.15?'⚠️ Ajustar Custos':mc>=0?'❌ Crítico (<15%)':'🚫 Inviável (prejuízo)',
+    etapa: etapasSel||'Abertura de obra',
+    status,
+    statusPrazo: status==='Finalizado'?'✅ CONCLUÍDO':status==='Paralisada'?'⚠️ PARALISADO':status==='Cancelada'?'🚫CANCELADO':'🕓 EM ANDAMENTO',
+    maps: document.getElementById('n_maps').value,
+    parceiros: parceirosList,
+    estoque: window._novaObraEstoque||null,
+  };
+  window._novaObraEstoque=null;
+  OBRAS.unshift(obraData);
+  filtered=[...OBRAS];
+  requestAnimationFrame(initDash);
+  toast('✅ Obra cadastrada! Total: '+OBRAS.length);
+  limpar();
+  // Pre-fill next IDEX for the next obra
+  setTimeout(preencherIdex, 100);
+}
+
+function limpar(){
+  ['n_id','n_cid','n_sie','n_os','n_rec','n_mat','n_fre','n_maps','n_cst','n_mc'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const logEl=document.getElementById('n_log');if(logEl)logEl.value='';
+  const bdiEl=document.getElementById('n_bdi');if(bdiEl)bdiEl.value='';
+  document.querySelectorAll('.ec.active').forEach(el=>{el.classList.remove('active');el.querySelector('.ec-chk').textContent='';});
+  // Reset status and viabilidade displays
+  const stD=document.getElementById('n_st_display');if(stD){stD.textContent='Selecione etapas acima';stD.style.color='var(--txt3)';}
+  const stH=document.getElementById('n_st');if(stH)stH.value='Em andamento';
+  const vEl=document.getElementById('n_viab_display');if(vEl){vEl.textContent='Preencha receita e custos';vEl.style.color='var(--txt3)';vEl.style.borderColor='var(--border)';vEl.style.background='var(--surface2)';}
+  // Clear estoque preview
+  const ep=document.getElementById('estoque_preview');if(ep){ep.style.display='none';ep.innerHTML='';}
+  window._novaObraEstoque=null;
+  // Reset parceiros to just one row
+  const pc=document.getElementById('parceirosCont');
+  if(pc){
+    pc.innerHTML='<div class="pr-row" style="display:grid;grid-template-columns:1fr 140px 36px;gap:10px;margin-bottom:10px;align-items:end"><div class="fg"><label class="flbl">Parceiro / Equipe</label><select class="fselect pnsel"><option value="">Selecione parceiro cadastrado...</option></select></div><div class="fg"><label class="flbl">Valor R$</label><input class="finput pnval" type="number" placeholder="0" oninput="calcFin()"></div><div></div></div>';
+    populatePSel();
+  }
+  // Auto-fill next IDEX
+  setTimeout(preencherIdex, 50);
+}
+
+// KANBAN
+function renderKanban(){
+  const cli=document.getElementById('kbCli').value||'';
+  const pl=document.getElementById('kbPl').value||'';
+  const st=document.getElementById('kbSt').value||'';
+  const obras=OBRAS.filter(o=>(!cli||o.cliente===cli)&&(!pl||o.planejador===pl)&&(!st||o.status===st));
+  document.getElementById('kbInfo').textContent=obras.length+' obra'+(obras.length!==1?'s':'');
+
+  // Also populate kanban column manager list
+  const colsList=document.getElementById('kbColsList');
+  if(colsList&&colsList.children.length===0) renderKbColsList();
+
+  // Build kanban grid — columns from KB_COLS
+  const board=document.getElementById('kanban');
+  board.style.gridTemplateColumns='repeat('+KB_COLS.length+',1fr)';
+  board.innerHTML=KB_COLS.map(col=>{
+    // Match obras to this column
+    const items=obras.filter(o=>{
+      if(col.status) return col.status.includes(o.status);
+      if(col.etapas&&col.etapas.length>0){
+        const oEtapas=o.etapa?o.etapa.split(',').map(e=>e.trim()):[];
+        return oEtapas.some(e=>col.etapas.includes(e))&&!['Finalizado','Paralisada','Cancelada'].includes(o.status);
+      }
+      return false;
+    }).slice(0,30);
+
+    return `<div>
+      <div class="kb-col-hdr" style="background:${col.bg}">
+        <span style="font-size:12px;font-weight:700;color:${col.color}">${col.label}</span>
+        <span class="kb-cnt" style="background:${col.color};color:#fff">${items.length}</span>
+      </div>
+      ${items.length===0?`<div style="text-align:center;padding:24px 12px;color:var(--txt3);font-size:12px">Nenhuma obra</div>`:''}
+      ${items.map(o=>`<div class="kb-card" onclick="openObraModal('${o.idex}')">
+        <div class="kb-id">${o.idex}</div>
+        <div class="kb-name">${o.idSite}</div>
+        <div class="kb-loc">${o.cliente} · ${o.cidade}/${o.uf}</div>
+        <div class="kb-foot">
+          <span class="badge b-blue" style="font-size:10px">${o.planejador||'—'}</span>
+          <span style="font-size:10.5px;margin-left:auto">${MC(o.mc)}</span>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+// PARCEIROS
+function openModalP(p){
+  if(p){document.getElementById('pn_nome').value=p.nome;document.getElementById('pn_tipo').value=p.tipo;document.getElementById('pn_esp').value=p.esp;document.getElementById('pn_uf').value=p.uf||'';document.getElementById('pn_tel').value=p.tel||'';document.getElementById('pn_obs').value=p.obs||'';document.getElementById('mParceiroT').textContent='✏️ Editar parceiro';}
+  else{['pn_nome','pn_tel','pn_obs'].forEach(id=>document.getElementById(id).value='');document.getElementById('mParceiroT').textContent='👤 Novo parceiro';}
+  openM('mParceiro');
+}
+function saveParceiro(){
+  const nome=document.getElementById('pn_nome').value.trim().toUpperCase();
+  if(!nome){toast('⚠️ Informe o nome');return;}
+  const ex=PARCEIROS.find(p=>p.nome===nome);
+  if(ex){ex.tipo=document.getElementById('pn_tipo').value;ex.esp=document.getElementById('pn_esp').value;ex.uf=document.getElementById('pn_uf').value;ex.tel=document.getElementById('pn_tel').value;ex.obs=document.getElementById('pn_obs').value;toast('✅ Parceiro atualizado');}
+  else{PARCEIROS.push({id:'p'+Date.now(),nome,tipo:document.getElementById('pn_tipo').value,esp:document.getElementById('pn_esp').value,uf:document.getElementById('pn_uf').value,tel:document.getElementById('pn_tel').value,obs:document.getElementById('pn_obs').value,obras:0,total:0});toast('✅ Parceiro cadastrado: '+nome);}
+  closeM('mParceiro');populatePSel();filtP=[...PARCEIROS];renderPList();
+  document.getElementById('pSubtitle').textContent=PARCEIROS.length+' parceiros cadastrados';
+  document.getElementById('pStatN').textContent=PARCEIROS.length;
+}
+function filtrarP(){const q=document.getElementById('qParceiro').value.toLowerCase();filtP=PARCEIROS.filter(p=>p.nome.toLowerCase().includes(q)||p.esp.toLowerCase().includes(q)||p.tipo.toLowerCase().includes(q));renderPList();}
+function renderParceiros(){
+  filtP=[...PARCEIROS];
+  document.getElementById('pSubtitle').textContent=PARCEIROS.length+' parceiro'+(PARCEIROS.length!==1?'s':'')+' cadastrado'+(PARCEIROS.length!==1?'s':'');
+  document.getElementById('pStatN').textContent=PARCEIROS.length;
+  document.getElementById('pStatPF').textContent=PARCEIROS.filter(p=>p.tipo==='Pessoa Física').length;
+  document.getElementById('pStatEmp').textContent=PARCEIROS.filter(p=>p.tipo==='Empresa').length;
+  // Total pago: sum from OBRAS partner values
+  const totalPago=PARCEIROS.reduce((s,p)=>s+(p.total||0),0);
+  const tpEl=document.getElementById('pStatPago');
+  if(tpEl) tpEl.textContent=totalPago>0?(totalPago>=1000000?'R$ '+(totalPago/1000000).toFixed(1)+'M':totalPago>=1000?'R$ '+(totalPago/1000).toFixed(0)+'k':'R$ '+Math.round(totalPago).toLocaleString('pt-BR')):'R$ 0';
+  renderPList();
+}
+function renderPList(){
+  document.getElementById('pGrid').innerHTML=filtP.slice(0,24).map(p=>`
+    <div class="pcard" onclick="openModalP(PARCEIROS.find(x=>x.id==='${p.id}'))">
+      <div class="pcard-hdr"><div class="pavatar" style="background:${avc(p.nome)}22;color:${avc(p.nome)}">${ini(p.nome)}</div><div><div class="pname">${p.nome}</div><div class="ptype">${p.tipo}${p.uf?' · '+p.uf:''}</div></div></div>
+      <div class="pstats">
+        <div class="ps"><div class="ps-lbl">Obras</div><div class="ps-val" style="color:var(--blue)">${p.obras}</div></div>
+        <div class="ps"><div class="ps-lbl">Total</div><div class="ps-val" style="color:var(--green);font-size:11px">${p.total>0?'R$'+(p.total/1000).toFixed(0)+'k':'—'}</div></div>
+        <div class="ps"><div class="ps-lbl">UF</div><div class="ps-val">${p.uf||'—'}</div></div>
+      </div>
+    </div>`).join('');
+  document.getElementById('pTable').innerHTML=filtP.slice().sort((a,b)=>b.total-a.total).map(p=>`
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:9px"><div style="width:30px;height:30px;border-radius:8px;background:${avc(p.nome)}22;color:${avc(p.nome)};display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700">${ini(p.nome)}</div><strong>${p.nome}</strong></div></td>
+      <td><span class="badge ${p.tipo==='CLT'?'b-amber':p.tipo==='Empresa'?'b-blue':'b-gray'}">${p.tipo}</span></td>
+      <td style="font-size:11px">${p.esp}</td>
+      <td>${p.uf||'—'}</td>
+      <td>${p.obras}</td>
+      <td>${R$(p.total)}</td>
+      <td>${R$(p.obras>0?Math.round(p.total/p.obras):0)}</td>
+      <td><button class="btn btn-ghost btn-xs" onclick="openModalP(PARCEIROS.find(x=>x.id==='${p.id}'))">✏️ Editar</button></td>
+    </tr>`).join('');
+}
 
 // CLIENTES
 function renderClientes(){
@@ -1849,10 +2131,10 @@ function renderEstoqueModal(estoque){
 <!-- Modal de importação da planilha -->
 <div class="modal" id="mImport" style="display:none">
   <div class="mc" style="max-width:560px">
-    <div class="mh"><span id="mImportTitle">📥 Importar Planilha</span><button class="close-btn" onclick="closeImportModal()">✕</button></div>
+    <div class="mh"><span id="mImportTitle">📥 Importar Planilha</span><button class="close-btn" onclick="closeM('mImport')">✕</button></div>
     <div id="mImportBody" style="padding:16px 20px;max-height:60vh;overflow-y:auto"></div>
     <div class="mf">
-      <button class="btn btn-ghost" onclick="closeImportModal()">Cancelar</button>
+      <button class="btn btn-ghost" onclick="closeM('mImport')">Cancelar</button>
       <button class="btn btn-primary" id="btnConfirmImport" onclick="confirmarImport()" style="display:none">✅ Importar obras</button>
     </div>
   </div>
@@ -2009,8 +2291,7 @@ async function confirmarImport(){
   filtered = [...OBRAS];
   saveData();
   requestAnimationFrame(initDash);
-  closeImportModal();
-  filtered=[...OBRAS];filtP=[...PARCEIROS];initSelects();populatePSel();populateEspecialidades();initDash();
+  closeM('mImport');
   toast(`✅ ${_importData.length} obras importadas com sucesso!`);
   _importData = [];
 }
@@ -2328,7 +2609,7 @@ async function confirmarImport(){
     recalcParceirosTotals();
     refreshAll();
     try{ saveData(); }catch(e){ console.warn(e); }
-    closeImportModal();
+    closeM('mImport');
     toast(`✅ Importação concluída: ${novos} nova(s), ${atualizados} atualizada(s).`);
     window._importData = [];
     if(typeof _importData !== 'undefined') { try{ _importData = []; }catch(e){} }
@@ -2510,7 +2791,7 @@ async function confirmarImport(){
     try{ if(typeof recalcParceirosTotals==='function') recalcParceirosTotals(); }catch(e){}
     try{ if(typeof refreshAll==='function') refreshAll(); else if(typeof initDash==='function') initDash(); }catch(e){ console.warn(e); }
     try{ saveData(); }catch(e){ console.warn(e); }
-    closeImportModal();
+    closeM('mImport');
     toast(`✅ Importação concluída: ${novos} nova(s), ${atualizados} atualizada(s).`);
     window._importData=[];
   };
