@@ -1804,49 +1804,87 @@ function buscar(){
 function expCSV(){const h='ID Site,IDEX,Cliente,Cidade,UF,Planejador,Analista,Etapa,Status,Receita,Custo,Lucro,MC,Prazo\n';const rows=filtered.map(o=>[o.idSite,o.idex,o.cliente,o.cidade,o.uf,o.planejador,o.analista,`"${o.etapa}"`,o.status,o.receita,o.custo,o.lucro,(o.mc*100).toFixed(1)+'%',o.statusPrazo].join(',')).join('\n');const b=new Blob(['\ufeff'+h+rows],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contel_obras.csv';a.click();}
 function expCSVP(){const h='Nome,Tipo,Especialidade,UF,Obras,Total\n';const rows=PARCEIROS.map(p=>[p.nome,p.tipo,p.esp,p.uf,p.obras,p.total].join(',')).join('\n');const b=new Blob(['\ufeff'+h+rows],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contel_parceiros.csv';a.click();}
 
+
 // BOOT
 // ============================================================
-// STORAGE — dados persistidos no servidor (Supabase via API)
+// STORAGE — online via API, com fallback seguro para arquivo local
 // ============================================================
 var _saveTimeout = null;
+const CONTEL_STORAGE_KEY = 'contel_pipeline_v3_data';
+function getApiUrl(){
+  const path = window.location && window.location.pathname ? window.location.pathname : '';
+  if(path.startsWith('/c/')) return '/c/api/pipeline';
+  return '/api/pipeline';
+}
+function saveLocalSnapshot(){
+  try{
+    localStorage.setItem(CONTEL_STORAGE_KEY, JSON.stringify({
+      obras: OBRAS,
+      parceiros: PARCEIROS,
+      kbcols: KB_COLS,
+      version: '3.5'
+    }));
+  }catch(e){ console.warn('Local save error:', e); }
+}
+function loadLocalSnapshot(){
+  try{
+    const raw = localStorage.getItem(CONTEL_STORAGE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ console.warn('Local load error:', e); return null; }
+}
 function saveData(){
   clearTimeout(_saveTimeout);
   _saveTimeout = setTimeout(async function(){
+    const payload = {obras: OBRAS, parceiros: PARCEIROS, kbcols: KB_COLS, version: '3.5'};
+    saveLocalSnapshot();
+    if(location.protocol === 'file:') return;
     try{
-      await fetch('/api/pipeline',{
+      const r = await fetch(getApiUrl(),{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          obras: OBRAS,
-          parceiros: PARCEIROS,
-          kbcols: KB_COLS,
-          version: '3.4'
-        })
+        body: JSON.stringify(payload)
       });
-    }catch(e){ console.warn('Save error:', e); }
-  }, 600);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    }catch(e){
+      console.warn('Save API error; snapshot local mantido:', e);
+    }
+  }, 150);
 }
 
 async function loadData(){
-  try{
-    const r = await fetch('/api/pipeline',{cache:'no-store'});
-    const json = await r.json();
-    if(json.ok && json.data){
-      const d = json.data;
+  let loaded = false;
+  if(location.protocol !== 'file:'){
+    try{
+      const r = await fetch(getApiUrl(),{cache:'no-store'});
+      if(r.ok){
+        const json = await r.json();
+        if(json.ok && json.data){
+          const d = json.data;
+          if(Array.isArray(d.obras)) OBRAS = d.obras;
+          if(Array.isArray(d.parceiros)) PARCEIROS = d.parceiros;
+          if(Array.isArray(d.kbcols) && d.kbcols.length > 0) KB_COLS = d.kbcols;
+          loaded = true;
+        }
+      }
+    }catch(e){ console.warn('Load API error; tentando snapshot local:', e); }
+  }
+  if(!loaded){
+    const d = loadLocalSnapshot();
+    if(d){
       if(Array.isArray(d.obras)) OBRAS = d.obras;
       if(Array.isArray(d.parceiros)) PARCEIROS = d.parceiros;
       if(Array.isArray(d.kbcols) && d.kbcols.length > 0) KB_COLS = d.kbcols;
     }
-  }catch(e){ console.warn('Load error:', e); }
+  }
   filtered=[...OBRAS]; filtP=[...PARCEIROS];
   initSelects();initEtapas();filtered=[...OBRAS];filtP=[...PARCEIROS];
   requestAnimationFrame(()=>requestAnimationFrame(initDash));
-  // Hook saves after load
   setTimeout(()=>{
-    if(typeof salvarObra==='function') { const _s=salvarObra; window.salvarObra=function(){_s();saveData();}; }
-    if(typeof saveEdit==='function')   { const _s=saveEdit;   window.saveEdit=function(){_s();saveData();}; }
-    if(typeof saveParceiro==='function'){ const _s=saveParceiro; window.saveParceiro=function(){_s();saveData();}; }
-    if(typeof saveKbCols==='function') { const _s=saveKbCols; window.saveKbCols=function(){_s();saveData();}; }
+    if(typeof salvarObra==='function' && !salvarObra._hookedSave) { const _s=salvarObra; window.salvarObra=function(){_s();saveData();}; window.salvarObra._hookedSave=true; }
+    if(typeof saveEdit==='function' && !saveEdit._hookedSave)   { const _s=saveEdit;   window.saveEdit=function(){_s();saveData();}; window.saveEdit._hookedSave=true; }
+    if(typeof saveParceiro==='function' && !saveParceiro._hookedSave){ const _s=saveParceiro; window.saveParceiro=function(){_s();saveData();}; window.saveParceiro._hookedSave=true; }
+    if(typeof saveKbCols==='function' && !saveKbCols._hookedSave) { const _s=saveKbCols; window.saveKbCols=function(){_s();saveData();}; window.saveKbCols._hookedSave=true; }
   },200);
 }
 
@@ -2548,24 +2586,33 @@ async function confirmarImport(){
   };
 
   window.confirmarImport = function(){
-    if(!Array.isArray(window._importData) || !_importData.length) return;
+    const data = Array.isArray(window._importData) ? window._importData : [];
+    if(!data.length){ toast('⚠️ Nenhuma obra para importar.'); return; }
+    if(!Array.isArray(window.OBRAS)) window.OBRAS = [];
+    if(!Array.isArray(window.PARCEIROS)) window.PARCEIROS = [];
     const existing = new Map();
     OBRAS.forEach((o,i) => {
       if(o.idSite) existing.set('site:'+norm(o.idSite), i);
       if(o.idex) existing.set('idex:'+norm(o.idex), i);
     });
     let novos = 0, atualizados = 0;
-    _importData.forEach(obra => {
+    data.forEach(obra => {
       normalizeObra(obra);
       const idx = existing.has('site:'+norm(obra.idSite)) ? existing.get('site:'+norm(obra.idSite)) : existing.get('idex:'+norm(obra.idex));
       if(idx !== undefined && idx >= 0){ OBRAS[idx] = obra; atualizados++; }
       else { OBRAS.unshift(obra); novos++; }
+      // manter o índice atualizado para duplicados dentro da própria importação
+      if(obra.idSite) existing.set('site:'+norm(obra.idSite), OBRAS.findIndex(o=>norm(o.idSite)===norm(obra.idSite)));
+      if(obra.idex) existing.set('idex:'+norm(obra.idex), OBRAS.findIndex(o=>norm(o.idex)===norm(obra.idex)));
     });
+    window.filtered = [...OBRAS];
+    recalcParceirosTotals();
     refreshAll();
-    try{ saveData(); }catch(e){}
+    try{ saveData(); }catch(e){ console.warn(e); }
     closeM('mImport');
     toast(`✅ Importação concluída: ${novos} nova(s), ${atualizados} atualizada(s).`);
     window._importData = [];
+    if(typeof _importData !== 'undefined') { try{ _importData = []; }catch(e){} }
   };
 
   window.renderParceiros = function(){
@@ -2706,6 +2753,48 @@ async function confirmarImport(){
 
   // normaliza dados já carregados após o load original
   setTimeout(()=>{ try{ refreshAll(); }catch(e){ console.warn('Patch refresh error', e); } }, 500);
+})();
+</script>
+
+
+<script>
+// HOTFIX IMPORT ONLINE — mantém API online, mas corrige confirmação/modal e fallback local
+(function(){
+  const norm2 = v => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+  window.closeM = function(id){
+    const el=document.getElementById(id); if(!el) return;
+    el.classList.remove('open');
+    el.style.display='none';
+  };
+  window.openM = function(id){
+    const el=document.getElementById(id); if(!el) return;
+    el.classList.add('open');
+    el.style.display='flex';
+  };
+  if(document.getElementById('btnConfirmImport')) document.getElementById('btnConfirmImport').type='button';
+  window.confirmarImport = function(){
+    const data = Array.isArray(window._importData) ? window._importData : [];
+    if(!data.length){ toast('⚠️ Nenhuma obra para importar.'); return; }
+    if(!Array.isArray(window.OBRAS)) window.OBRAS=[];
+    const existing = new Map();
+    OBRAS.forEach((o,i)=>{ if(o.idSite) existing.set('site:'+norm2(o.idSite),i); if(o.idex) existing.set('idex:'+norm2(o.idex),i); });
+    let novos=0, atualizados=0;
+    data.forEach(obra=>{
+      if(typeof normalizeObra==='function') normalizeObra(obra);
+      let idx = existing.has('site:'+norm2(obra.idSite)) ? existing.get('site:'+norm2(obra.idSite)) : existing.get('idex:'+norm2(obra.idex));
+      if(idx !== undefined && idx >= 0){ OBRAS[idx]=obra; atualizados++; }
+      else { OBRAS.unshift(obra); idx=0; novos++; }
+      if(obra.idSite) existing.set('site:'+norm2(obra.idSite), idx);
+      if(obra.idex) existing.set('idex:'+norm2(obra.idex), idx);
+    });
+    window.filtered=[...OBRAS];
+    try{ if(typeof recalcParceirosTotals==='function') recalcParceirosTotals(); }catch(e){}
+    try{ if(typeof refreshAll==='function') refreshAll(); else if(typeof initDash==='function') initDash(); }catch(e){ console.warn(e); }
+    try{ saveData(); }catch(e){ console.warn(e); }
+    closeM('mImport');
+    toast(`✅ Importação concluída: ${novos} nova(s), ${atualizados} atualizada(s).`);
+    window._importData=[];
+  };
 })();
 </script>
 
