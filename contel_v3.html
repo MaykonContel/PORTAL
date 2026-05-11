@@ -245,11 +245,21 @@ function ani(dur,fn){
 function gc(id){
   var el=document.getElementById(id);
   if(!el)return null;
-  var p=el.parentElement,r=p?p.getBoundingClientRect():el.getBoundingClientRect();
-  var W2=Math.floor(r.width||500),H2=Math.floor(el.offsetHeight||280);
-  if(W2<10)return null;
+  // Find width by walking up the DOM
+  var W2=0,H2=0,node=el.parentElement||el;
+  for(var attempts=0;attempts<6&&W2<10;attempts++){
+    W2=node.offsetWidth||0;
+    if(!node.parentElement)break;
+    node=node.parentElement;
+  }
+  if(W2<10)W2=500;
+  H2=el.offsetHeight||0;
+  if(H2<10){
+    // Try to get height from class
+    var cn=(el.className||'')+(el.parentElement?el.parentElement.className:'');
+    H2=cn.indexOf('ch3')>=0?340:cn.indexOf('ch2')>=0?290:cn.indexOf('ch')>=0?240:280;
+  }
   el.width=W2;el.height=H2;
-  // Remove old handlers stored on element
   if(el._ev){
     el.removeEventListener('mousemove',el._ev.mm);
     el.removeEventListener('mouseleave',el._ev.ml);
@@ -1217,6 +1227,14 @@ function renderAlertasReais(){
 function drawDash(){
   var O=window.OBRAS||[];
   if(!O.length)return;
+  // If canvas container not ready, retry
+  var _cont=document.getElementById('cClientes');
+  var _w=0,_n=_cont;while(_n&&_w<10){_w=_n.offsetWidth||0;_n=_n.parentElement;}
+  if(_w<10){
+    window._ddRetry=(window._ddRetry||0)+1;
+    if(window._ddRetry<6){setTimeout(drawDash,150);return;}
+  }
+  window._ddRetry=0;
   var cc={};O.forEach(function(o){var c=o.cliente||'—';cc[c]=(cc[c]||0)+1;});
   var cs=Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,14);
   drawHBar('cClientes',cs.map(function(x){return x[0];}),cs.map(function(x){return x[1];}),cs.map(function(){return '#2563eb';}),filterByClient,function(v){return v+' obra'+(v!==1?'s':'');});
@@ -1234,6 +1252,7 @@ function drawDash(){
 
 function initDash(){
   if(!Array.isArray(window.OBRAS))window.OBRAS=[];
+
   var O=OBRAS,t=O.length;
   var co=O.filter(function(o){return o.status==='Finalizado';}).length;
   var an=O.filter(function(o){return o.status==='Em andamento';}).length;
@@ -1263,7 +1282,11 @@ function initDash(){
       '<td>'+MC(o.mc)+'</td>'+
       '<td>'+bdg(o.statusPrazo)+'</td></tr>';
   }).join('');
-  drawDash();drawDashExtra();
+  // Draw charts after next paint to ensure DOM is ready
+  requestAnimationFrame(function(){
+    drawDash();
+    requestAnimationFrame(drawDashExtra);
+  });
 }
 
 // OBRAS TABLE
@@ -2657,6 +2680,26 @@ window.expCSV = function(){
     toast(`✅ Importação concluída: ${novos} nova(s), ${atualizados} atualizada(s).`);
     window._importData=[];
   };
+})();
+</script>
+
+
+<script>
+// Chart boot - ensure charts render after full page load
+(function boot(){
+  function tryDraw(){
+    if(typeof drawDash==='function'&&typeof window.OBRAS!=='undefined'&&Array.isArray(window.OBRAS)&&window.OBRAS.length>0){
+      window._ddRetry=0;
+      drawDash();
+      setTimeout(drawDashExtra,50);
+    }
+  }
+  // Try immediately, then at 300ms, 600ms, 1200ms
+  if(document.readyState==='complete') tryDraw();
+  window.addEventListener('load', tryDraw);
+  setTimeout(tryDraw, 300);
+  setTimeout(tryDraw, 600);
+  setTimeout(tryDraw, 1200);
 })();
 </script>
 
