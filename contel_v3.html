@@ -3154,59 +3154,7 @@ async function confirmarImport(){
     const crit = OBRAS.filter(o=>Number(o.mc||0)<.2 && o.status!=='Cancelada').sort((a,b)=>Number(a.mc||0)-Number(b.mc||0)).slice(0,40);
     const tb=document.getElementById('finTable'); if(tb) tb.innerHTML=crit.map(o=>`<tr><td class="td-mono"><strong>${o.idSite}</strong></td><td>${o.cliente}</td><td>${o.cidade}/${o.uf}</td><td>${moneyText(o.receita)}</td><td>${moneyText(o.custo)}</td><td>${moneyText(o.lucro)}</td><td>${MC(o.mc)}</td><td>${o.viabilidade||''}</td></tr>`).join('');
   };
-
-  window.drawDash = function(){
-    OBRAS.forEach(normalizeObra);
-    const cc={}; OBRAS.forEach(o=>{cc[o.cliente||'—']=(cc[o.cliente||'—']||0)+1;});
-    const cs=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,12);
-    drawBarChart('cClientes',{labels:cs.map(x=>x[0]),datasets:[{label:'Obras',data:cs.map(x=>x[1]),color:'#2563eb'}],showLegend:false,yFormat:v=>Math.round(v)});
-    const sc={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0,'Não iniciada':0}; OBRAS.forEach(o=>{sc[o.status] = (sc[o.status]||0)+1;});
-    drawDonutChart('cStatus',{labels:Object.keys(sc),data:Object.values(sc),colors:['#059669','#2563eb','#d97706','#94a3b8','#cbd5e1']});
-    const cm={}; OBRAS.forEach(o=>{const c=o.cliente||'—'; if(!cm[c]) cm[c]={rec:0,lc:0}; cm[c].rec+=Number(o.receita||0); cm[c].lc+=Number(o.lucro||0);});
-    const ca=Object.entries(cm).map(([k,d])=>({k,mc:d.rec>0?d.lc/d.rec:0})).sort((a,b)=>b.mc-a.mc).slice(0,12);
-    drawBarChart('cMargem',{labels:ca.map(x=>x.k),datasets:[{label:'MC%',data:ca.map(x=>Number((x.mc*100).toFixed(1))),color:'#059669'}],showLegend:false,yFormat:v=>v+'%',colorsPerBar:ca.map(x=>x.mc>=.3?'#059669':x.mc>=.15?'#d97706':'#dc2626')});
-    const ec={}; OBRAS.filter(o=>o.status==='Em andamento').forEach(o=>{String(o.etapa||'Sem etapa').split(',').map(e=>e.trim()).filter(Boolean).forEach(e=>{ec[e]=(ec[e]||0)+1;});});
-    const es=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,10);
-    drawBarChart('cEtapa',{labels:es.map(x=>x[0]),datasets:[{label:'Obras',data:es.map(x=>x[1]),color:'#7c3aed'}],horizontal:true,showLegend:false,yFormat:v=>Math.round(v)});
-  };
-
-  window.drawDashExtra = function(){
-    const total = OBRAS.length || 1;
-    const PESO={'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execução':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100};
-    const avancoObra=o=>{ if(o.status==='Finalizado') return 100; if(o.status==='Cancelada'||o.status==='Paralisada') return 0; const ps=String(o.etapa||'').split(',').map(e=>PESO[e.trim()]||0); return Math.max(5,...ps); };
-    const avanco = OBRAS.reduce((s,o)=>s+avancoObra(o),0)/total;
-    const labels=['S1','S2','S3','S4','S5','S6','S7','S8'];
-    const curva=t=>100*(3*t*t-2*t*t*t);
-    const base=labels.map((_,i)=>Number((curva(i/7)*0.92).toFixed(1)));
-    const prev=labels.map((_,i)=>Number(curva(i/7).toFixed(1)));
-    const real=labels.map((_,i)=> i<=5 ? Number((avanco*curva(i/5)/100).toFixed(1)) : null);
-    drawLineChart('dCurvaS',{labels,datasets:[{label:'Base',data:base,color:'#d97706',dash:true},{label:'Previsto',data:prev,color:'#2563eb'},{label:'Realizado',data:real,color:'#059669',width:3}],yFormat:v=>v+'%',yMin:0,yMax:105});
-    const incPrev=prev.map((v,i)=>i?Number((v-prev[i-1]).toFixed(1)):v);
-    const incReal=real.map((v,i)=>v==null?null:(i?Number((v-(real[i-1]||0)).toFixed(1)):v));
-    drawLineChart('dSemanal',{labels,datasets:[{label:'Previsto acumulado',data:prev,color:'#2563eb'},{label:'Realizado acumulado',data:real,color:'#059669',width:3},{label:'Base',data:base,color:'#d97706',dash:true}],yFormat:v=>v+'%',yMin:0,yMax:105});
-    const etapas=['Abertura de obra','Elaboração de cronograma','Mapeamento','Projeto','Compra de material','Fabricação / Galvanização','Envio de material','Execução','Finalizado'];
-    const dEt=document.getElementById('dEtapas'); if(dEt) dEt.innerHTML=etapas.map(e=>{const n=OBRAS.filter(o=>String(o.etapa||'').includes(e)||o.status===e).length; const pct=Math.round(n/total*100); return `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><strong>${e}</strong><span>${n} · ${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:var(--blue)"></div></div></div>`;}).join('');
-    if(typeof renderAlertasReais==='function') renderAlertasReais();
-  };
-
-  window.initDash = function(){
-    if(!Array.isArray(window.OBRAS)) window.OBRAS=[];
-    OBRAS.forEach(normalizeObra);
-    recalcParceirosTotals();
-    const t=OBRAS.length, co=OBRAS.filter(o=>o.status==='Finalizado').length, an=OBRAS.filter(o=>o.status==='Em andamento').length, pa=OBRAS.filter(o=>o.status==='Paralisada').length;
-    const recTot=OBRAS.reduce((s,o)=>s+Number(o.receita||0),0); const cstTot=OBRAS.reduce((s,o)=>s+Number(o.custo||0),0); const mcA=recTot>0?(recTot-cstTot)/recTot:0;
-    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
-    set('kT',t); set('sbTotal',t); set('kRec',moneyShort(recTot)); set('kRecSub','MC média: '+(mcA*100).toFixed(1).replace('.',',')+'%');
-    set('kC',co); set('kCsub',t?Math.round(co/t*100)+'% do portfólio':'0% do portfólio');
-    set('kA',an); set('kAsub',t?Math.round(an/t*100)+'% do portfólio':'0% do portfólio');
-    set('kP',pa); set('kPsub',t?Math.round(pa/t*100)+'% do portfólio':'0% do portfólio');
-    set('sbParceiros',PARCEIROS.length);
-    const dBadge=document.getElementById('dBadge'); if(dBadge) dBadge.textContent='⏰ Atrasadas: '+OBRAS.filter(o=>String(o.statusPrazo||'').includes('ATRASADO')).length;
-    const dTable=document.getElementById('dTable'); if(dTable) dTable.innerHTML=OBRAS.filter(o=>o.status==='Em andamento').slice(0,15).map(o=>`<tr><td class="td-mono" style="font-weight:700">${o.idSite}</td><td style="font-size:11px;color:var(--txt3)">${o.idex}</td><td><strong>${o.cliente}</strong></td><td style="font-size:11px">${o.cidade}/${o.uf}</td><td style="font-size:11.5px;max-width:160px;white-space:normal;line-height:1.4">${o.etapa}</td><td style="font-size:11px">${o.planejador}</td><td style="font-size:11px">${moneyText(o.receita)}</td><td>${MC(o.mc)}</td><td>${bdg(o.statusPrazo)}</td></tr>`).join('');
-    drawDash(); drawDashExtra();
-  };
-
-  window.expCSV = function(){
+window.expCSV = function(){
     const h='ID Site,IDEX,Cliente,Cidade,UF,Planejador,Analista,Etapa,Status,Receita,Custo,Lucro,MC,Prazo\n';
     const rows=(window.filtered||OBRAS).map(o=>[o.idSite,o.idex,o.cliente,o.cidade,o.uf,o.planejador,o.analista,`"${o.etapa}"`,o.status,o.receita,o.custo,o.lucro,(Number(o.mc||0)*100).toFixed(1)+'%',o.statusPrazo].join(',')).join('\n');
     const b=new Blob(['\ufeff'+h+rows],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contel_obras.csv';a.click();
