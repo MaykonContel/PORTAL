@@ -302,10 +302,11 @@ function rrect(ctx, x, y, w, h, r, topOnly){
 
 // ── Replace canvas with fresh clone (clears event listeners) 
 function freshCanvas(el){
-  var n = el.cloneNode(false);
-  n.width = el.width; n.height = el.height;
-  el.parentNode.replaceChild(n, el);
-  return n;
+  // Reuse the same element - no cloning to prevent DOM stacking
+  if(el._mm)  { el.removeEventListener('mousemove',  el._mm);  el._mm  = null; }
+  if(el._ml)  { el.removeEventListener('mouseleave', el._ml);  el._ml  = null; }
+  if(el._clk) { el.removeEventListener('click',      el._clk); el._clk = null; }
+  return el;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -392,7 +393,7 @@ function drawHBar(id, labels, values, colors, onClickFn, yFmt, metaLine){
   var nel = freshCanvas(s.el);
   nel._hi = -1;
 
-  nel.addEventListener('mousemove', function(e){
+  nel._mm = function(e){
     var rect = nel.getBoundingClientRect();
     var my = e.clientY - rect.top;
     var newHi = -1;
@@ -407,14 +408,17 @@ function drawHBar(id, labels, values, colors, onClickFn, yFmt, metaLine){
     } else { tipHide(); nel.style.cursor = 'default'; }
     tipMove(e);
   });
-  nel.addEventListener('mouseleave', function(){ nel._hi=-1; hi=-1; draw(1); tipHide(); });
-  nel.addEventListener('click', function(e){
+  nel._ml = function(){ nel._hi=-1; hi=-1; draw(1); tipHide(); };
+  nel.addEventListener('mousemove',nel._mm);
+  nel.addEventListener('mouseleave',nel._ml);
+  nel._clk = function(e){
     var rect = nel.getBoundingClientRect();
     var my = e.clientY - rect.top;
     values.forEach(function(_, i){
       if(my >= padT + i*rowH && my < padT + (i+1)*rowH && onClickFn) onClickFn(labels[i], i);
     });
-  });
+  };
+  nel.addEventListener('click',nel._clk);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -493,7 +497,7 @@ function drawDonut(id, labels, data, colors, onClickFn){
   var nel = freshCanvas(s.el);
   nel._hi = -1;
 
-  nel.addEventListener('mousemove', function(e){
+  nel._mm = function(e){
     var rect = nel.getBoundingClientRect();
     var mx   = e.clientX - rect.left - cx;
     var my   = e.clientY - rect.top  - cy;
@@ -521,10 +525,13 @@ function drawDonut(id, labels, data, colors, onClickFn){
     } else { tipHide(); nel.style.cursor = 'default'; }
     tipMove(e);
   });
-  nel.addEventListener('mouseleave', function(){ nel._hi=-1; hi=-1; draw(1); tipHide(); });
-  nel.addEventListener('click', function(){
+  nel._ml = function(){ nel._hi=-1; hi=-1; draw(1); tipHide(); };
+  nel.addEventListener('mousemove',nel._mm);
+  nel.addEventListener('mouseleave',nel._ml);
+  nel._clk = function(){
     if(nel._hi >= 0 && onClickFn) onClickFn(labels[nel._hi], nel._hi);
-  });
+  };
+  nel.addEventListener('click',nel._clk);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -634,7 +641,7 @@ function drawLine(id, labels, datasets, yFmt, yMin, yMax){
 
   // hover tooltip
   var nel = freshCanvas(s.el);
-  nel.addEventListener('mousemove', function(e){
+  nel._mm = function(e){
     var rect = nel.getBoundingClientRect();
     var mx   = e.clientX - rect.left;
     var idx  = Math.round((mx - padL) / cW * (labels.length - 1));
@@ -646,8 +653,12 @@ function drawLine(id, labels, datasets, yFmt, yMin, yMax){
         html += '<span style="color:'+(ds.color||'#7dd3fc')+'">● '+ds.label+': '+(yFmt?yFmt(v):v+'%')+'</span><br>';
     });
     tipShow(e, html); tipMove(e);
-  });
-  nel.addEventListener('mouseleave', tipHide);
+  };
+  nel.addEventListener('mousemove',nel._mm);
+  nel.addEventListener('mouseleave',nel._ml);
+  nel._ml = tipHide;
+  nel.addEventListener('mousemove',nel._mm);
+  nel.addEventListener('mouseleave',nel._ml);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -724,7 +735,7 @@ function drawVBar(id, labels, values, colors, onClickFn){
 
   var nel = freshCanvas(s.el);
   nel._hi = -1;
-  nel.addEventListener('mousemove', function(e){
+  nel._mm = function(e){
     var rect = nel.getBoundingClientRect();
     var mx = e.clientX - rect.left;
     var newHi = -1;
@@ -740,14 +751,17 @@ function drawVBar(id, labels, values, colors, onClickFn){
     } else { tipHide(); nel.style.cursor = 'default'; }
     tipMove(e);
   });
-  nel.addEventListener('mouseleave', function(){ nel._hi=-1; hi=-1; draw(1); tipHide(); });
-  nel.addEventListener('click', function(e){
+  nel._ml = function(){ nel._hi=-1; hi=-1; draw(1); tipHide(); };
+  nel.addEventListener('mousemove',nel._mm);
+  nel.addEventListener('mouseleave',nel._ml);
+  nel._clk = function(e){
     var rect = nel.getBoundingClientRect();
     var mx = e.clientX - rect.left;
     values.forEach(function(_, i){
       if(mx >= padL+i*rowW && mx < padL+(i+1)*rowW && onClickFn) onClickFn(labels[i], i);
     });
-  });
+  };
+  nel.addEventListener('click',nel._clk);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1626,7 +1640,7 @@ function initDash(){
   if(el('kRec'))el('kRec').textContent=recTot>0?fmt(recTot):'R$ 0';
   if(el('kRecSub'))el('kRecSub').textContent='MC média: '+(mcArr.length?(mcA*100).toFixed(1)+'%':'—');
   if(el('dBadge'))el('dBadge').textContent='⏰ Atrasadas: '+OBRAS.filter(function(o){return String(o.statusPrazo||'').includes('ATRASADO');}).length;
-  if(el('dTable'))el('dTable').innerHTML=OBRAS.filter(function(o){return o.status==='Em andamento';}).slice(0,15).map(function(o){return '<tr onclick="openSlide(''+o.idex+'')"><td class="td-mono" style="font-weight:700">'+o.idSite+'</td><td style="font-size:11px;color:var(--txt3)">'+o.idex+'</td><td><strong>'+o.cliente+'</strong></td><td style="font-size:11px">'+o.cidade+'/'+o.uf+'</td><td style="font-size:11px">'+o.etapa+'</td><td style="font-size:11px">'+o.planejador+'</td><td>'+R$(o.receita)+'</td><td>'+MC(o.mc)+'</td><td>'+bdg(o.statusPrazo)+'</td></tr>';}).join('');
+  if(el('dTable'))el('dTable').innerHTML=OBRAS.filter(function(o){return o.status==='Em andamento';}).slice(0,15).map(function(o){return '<tr onclick="openObraModal(''+o.idex+'')"><td class="td-mono" style="font-weight:700">'+o.idSite+'</td><td style="font-size:11px;color:var(--txt3)">'+o.idex+'</td><td><strong>'+o.cliente+'</strong></td><td style="font-size:11px">'+o.cidade+'/'+o.uf+'</td><td style="font-size:11px">'+o.etapa+'</td><td style="font-size:11px">'+o.planejador+'</td><td>'+R$(o.receita)+'</td><td>'+MC(o.mc)+'</td><td>'+bdg(o.statusPrazo)+'</td></tr>';}).join('');
   drawDash(); drawDashExtra();
 }
 
@@ -2073,7 +2087,7 @@ function renderFin(){
   var cm={};OBRAS.forEach(function(o){var c=o.cliente||'—';if(!cm[c])cm[c]={rec:0,lc:0};cm[c].rec+=Number(o.receita||0);cm[c].lc+=Number(o.lucro||0);});
   var ca=Object.entries(cm).filter(function(x){return x[1].rec>0;}).map(function(x){return{k:x[0],mc:x[1].lc/x[1].rec};}).sort(function(a,b){return b.mc-a.mc;}).slice(0,14);
   drawHBar('cFaixa',ca.map(function(x){return x.k;}),ca.map(function(x){return+(x.mc*100).toFixed(1);}),ca.map(function(x){return x.mc>=0.30?'#059669':x.mc>=0.15?'#2563eb':'#dc2626';}),null,function(v){return v.toFixed(1)+'%';},20);
-  if(_('finTable'))_('finTable').innerHTML=OBRAS.filter(function(o){return o.mc<0.2;}).sort(function(a,b){return a.mc-b.mc;}).map(function(o){return '<tr onclick="openSlide(''+o.idex+'')"><td class="td-mono">'+o.idSite+'</td><td>'+o.cliente+'</td><td>'+o.cidade+'/'+o.uf+'</td><td>'+R$(o.receita)+'</td><td>'+R$(o.custo)+'</td><td style="'+(o.lucro<0?'color:var(--red);font-weight:600':'')+'">'+R$(o.lucro)+'</td><td>'+MC(o.mc)+'</td><td>'+(o.viabilidade||'?')+'</td></tr>';}).join('');
+  if(_('finTable'))_('finTable').innerHTML=OBRAS.filter(function(o){return o.mc<0.2;}).sort(function(a,b){return a.mc-b.mc;}).map(function(o){return '<tr onclick="openObraModal(''+o.idex+'')"><td class="td-mono">'+o.idSite+'</td><td>'+o.cliente+'</td><td>'+o.cidade+'/'+o.uf+'</td><td>'+R$(o.receita)+'</td><td>'+R$(o.custo)+'</td><td style="'+(o.lucro<0?'color:var(--red);font-weight:600':'')+'">'+R$(o.lucro)+'</td><td>'+MC(o.mc)+'</td><td>'+(o.viabilidade||'?')+'</td></tr>';}).join('');
 }
 
 // BUSCA
@@ -2170,7 +2184,7 @@ async function loadData(){
   }
   filtered=[...OBRAS]; filtP=[...PARCEIROS];
   initSelects();initEtapas();filtered=[...OBRAS];filtP=[...PARCEIROS];
-  requestAnimationFrame(()=>requestAnimationFrame(initDash));
+  requestAnimationFrame(initDash);
   setTimeout(()=>{
     if(typeof salvarObra==='function' && !salvarObra._hookedSave) { const _s=salvarObra; window.salvarObra=function(){_s();saveData();}; window.salvarObra._hookedSave=true; }
     if(typeof saveEdit==='function' && !saveEdit._hookedSave)   { const _s=saveEdit;   window.saveEdit=function(){_s();saveData();}; window.saveEdit._hookedSave=true; }
@@ -2396,6 +2410,16 @@ function renderEstoqueModal(estoque){
 }
 
 
+
+// ── Slide panel aliases (maps to existing obra modal) ─────────
+function openSlide(idex){
+  if(typeof openObraModal==='function') openObraModal(idex);
+}
+function closeSlide(){
+  if(typeof closeM==='function') closeM('mObra');
+}
+function spTab(el, tabName){}
+function spSalvarEdicao(){ if(typeof saveEdit==='function') saveEdit(); }
 </script>
 
 <!-- MODAL GERENCIAR COLUNAS KANBAN -->
