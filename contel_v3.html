@@ -122,9 +122,9 @@ tbody tr:hover td{background:var(--surface2);}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-.ch{position:relative;min-height:240px;}
-.ch2{position:relative;min-height:290px;}
-.ch3{position:relative;min-height:340px;}
+.ch{position:relative;height:240px;}
+.ch2{position:relative;height:290px;}
+.ch3{position:relative;height:340px;}
 .pbar{height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;min-width:50px;}
 .pfill{height:100%;border-radius:3px;}
 
@@ -218,303 +218,264 @@ tbody tr:hover td{background:var(--surface2);}
 </style>
 
 <script>
-// ================================================================
-// CONTEL SVG CHART ENGINE — Sem canvas, sem timing, sempre funciona
-// ================================================================
-(function(W){
+// ============================================================
+// MINI CHART ENGINE — pure Canvas, zero dependencies
+// ============================================================
+const CHART_COLORS = ['#2563eb','#059669','#7c3aed','#d97706','#0891b2','#dc2626','#db2777','#0d9488','#ea580c','#65a30d','#6366f1','#f43f5e'];
+const CHART_COLORS_ALPHA = (hex,a) => {const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${a})`;};
 
-function fmt(v){
-  if(v>=1e6) return 'R$ '+(v/1e6).toFixed(1)+'M';
-  if(v>=1e3) return 'R$ '+(v/1e3).toFixed(0)+'k';
-  return 'R$ '+Math.round(v).toLocaleString('pt-BR');
-}
-function pct(v){ return (v*100).toFixed(1)+'%'; }
-function clr(mc){ return mc>=0.30?'#059669':mc>=0.15?'#2563eb':'#dc2626'; }
+function drawBarChart(canvasId, {labels, datasets, horizontal=false, showLegend=true, yFormat=v=>v, maxVal=null, colorsPerBar=null}){
+  const el = document.getElementById(canvasId); if(!el) return;
+  const rect=el.getBoundingClientRect();const W=rect.width>10?rect.width:(el.parentElement?.getBoundingClientRect().width||500);
+  const H = el.offsetHeight||260;
+  el.width=W; el.height=H;
+  const ctx = el.getContext('2d');
+  ctx.clearRect(0,0,W,H);
 
-// Tooltip
-var TIP=document.createElement('div');
-TIP.style.cssText='position:fixed;background:#0f172a;color:#f8fafc;padding:8px 12px;border-radius:8px;font:500 12px Inter,sans-serif;pointer-events:none;z-index:9999;opacity:0;transition:opacity .1s;box-shadow:0 8px 24px rgba(0,0,0,.3);line-height:1.5;max-width:220px';
-document.body.appendChild(TIP);
-function tOn(e,h){TIP.innerHTML=h;TIP.style.opacity='1';tMv(e);}
-function tMv(e){TIP.style.left=Math.min(e.clientX+14,innerWidth-240)+'px';TIP.style.top=Math.max(4,e.clientY-8)+'px';}
-function tOff(){TIP.style.opacity='0';}
+  const padL=horizontal?140:42, padR=20, padT=showLegend?36:14, padB=horizontal?28:32;
+  const cW=W-padL-padR, cH=H-padT-padB;
 
-function svg(w,h,content){
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="'+h+'" viewBox="0 0 '+w+' '+h+'" style="display:block">'+content+'</svg>';
-}
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-// ── HORIZONTAL BAR (SVG) ─────────────────────────────────────────
-W.renderHBarSVG = function(containerId, labels, values, colors, onClickFn, yFmt, meta){
-  var el=document.getElementById(containerId); if(!el) return;
-  var n=labels.length; if(!n) return;
-  var W2=560, rowH=36, padL=164, padR=70, padT=8, barH=20;
-  var cW=W2-padL-padR, H2=padT*2+n*rowH;
-  var maxV=Math.max.apply(null,values.concat([1]));
-  var items='';
-  for(var i=0;i<n;i++){
-    var v=values[i], bW=Math.max(0,Math.round((v/maxV)*cW));
-    var y=padT+i*rowH, bY=y+(rowH-barH)/2;
-    var col=(colors&&colors[i])||'#2563eb';
-    var vs=yFmt?yFmt(v):String(v);
-    var lbl=String(labels[i]); if(lbl.length>20)lbl=lbl.slice(0,19)+'…';
-    var onclick=onClickFn?'style="cursor:pointer" data-idx="'+i+'"':'';
-    // track
-    items+='<rect x="'+padL+'" y="'+bY+'" width="'+cW+'" height="'+barH+'" rx="4" fill="rgba(0,0,0,.04)"/>';
-    // bar
-    if(bW>0) items+='<rect class="hbar-bar" x="'+padL+'" y="'+bY+'" width="'+bW+'" height="'+barH+'" rx="4" fill="'+col+'" opacity=".85" '+onclick+' data-label="'+esc(labels[i])+'" data-val="'+esc(vs)+'"><title>'+esc(labels[i])+': '+esc(vs)+'</title></rect>';
-    // value label
-    if(bW>50) items+='<text x="'+(padL+bW-8)+'" y="'+(bY+barH/2+4)+'" text-anchor="end" fill="white" font-size="11" font-weight="600" pointer-events="none">'+esc(vs)+'</text>';
-    else items+='<text x="'+(padL+Math.max(bW,0)+6)+'" y="'+(bY+barH/2+4)+'" fill="#64748b" font-size="11" font-weight="600" pointer-events="none">'+esc(vs)+'</text>';
-    // label
-    items+='<text x="'+(padL-10)+'" y="'+(bY+barH/2+4)+'" text-anchor="end" fill="#374151" font-size="11.5" pointer-events="none">'+esc(lbl)+'</text>';
-  }
-  // meta line
-  if(meta!=null){
-    var mx=padL+Math.round((meta/maxV)*cW);
-    items+='<line x1="'+mx+'" y1="'+padT+'" x2="'+mx+'" y2="'+(padT+n*rowH)+'" stroke="rgba(220,38,38,.5)" stroke-width="1.5" stroke-dasharray="4,3"/>';
-    items+='<text x="'+(mx+3)+'" y="'+(padT+10)+'" fill="#dc2626" font-size="9">meta '+meta+'%</text>';
-  }
-  var s=svg(W2,H2,items);
-  el.innerHTML=s;
-  // Click events
-  if(onClickFn){
-    el.querySelectorAll('.hbar-bar').forEach(function(bar){
-      bar.addEventListener('click',function(){onClickFn(bar.dataset.label,parseInt(bar.dataset.idx));});
-      bar.addEventListener('mouseover',function(e){bar.setAttribute('opacity','.95');tOn(e,'<b style="color:#e2e8f0">'+bar.dataset.label+'</b><br><span style="color:#7dd3fc">'+bar.dataset.val+'</span>');});
-      bar.addEventListener('mousemove',tMv);
-      bar.addEventListener('mouseout',function(){bar.setAttribute('opacity','.85');tOff();});
+  // Legend
+  if(showLegend&&datasets.length>1){
+    let lx=padL; let ly=10;
+    datasets.forEach((ds,i)=>{
+      ctx.fillStyle=ds.color||CHART_COLORS[i];
+      ctx.fillRect(lx,ly,10,10);
+      ctx.fillStyle='#94a3b8'; ctx.font='10px Inter,sans-serif';
+      ctx.fillText(ds.label||'',lx+14,ly+9);
+      lx+=ctx.measureText(ds.label||'').width+32;
     });
   }
-};
 
-// ── DONUT (SVG) ──────────────────────────────────────────────────
-W.renderDonutSVG = function(containerId, labels, data, colors, onClickFn){
-  var el=document.getElementById(containerId); if(!el) return;
-  var total=data.reduce(function(a,b){return a+Math.max(0,b);},0)||1;
-  var W2=480, H2=280, cx=155, cy=140, r=110, ri=62;
-  var paths='', legItems='';
-  var a=-Math.PI/2;
-  for(var i=0;i<data.length;i++){
-    if(data[i]<=0)continue;
-    var sl=(data[i]/total)*Math.PI*2;
-    var col=(colors&&colors[i])||'#2563eb';
-    var x1=cx+r*Math.cos(a), y1=cy+r*Math.sin(a);
-    var x2=cx+r*Math.cos(a+sl), y2=cy+r*Math.sin(a+sl);
-    var large=sl>Math.PI?1:0;
-    var pct2=Math.round(data[i]/total*100);
-    var path='M '+cx+' '+cy+' L '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' Z';
-    paths+='<path d="'+path+'" fill="'+col+'" opacity=".9" class="donut-seg" data-label="'+esc(labels[i])+'" data-val="'+data[i]+'" data-pct="'+pct2+'" style="cursor:pointer;transition:opacity .15s"><title>'+esc(labels[i])+': '+data[i]+' ('+pct2+'%)</title></path>';
-    // legend
-    var ly=20+i*28;
-    legItems+='<circle cx="'+(cx+r+30)+'" cy="'+(ly+6)+'" r="6" fill="'+col+'"/>';
-    var lbl=String(labels[i]); if(lbl.length>14)lbl=lbl.slice(0,13)+'…';
-    legItems+='<text x="'+(cx+r+44)+'" y="'+(ly+11)+'" fill="#374151" font-size="12">'+esc(lbl)+'</text>';
-    legItems+='<text x="'+(cx+r+44)+'" y="'+(ly+24)+'" fill="#94a3b8" font-size="10">'+data[i]+' · '+pct2+'%</text>';
-    a+=sl;
-  }
-  // hole + center
-  var center='<circle cx="'+cx+'" cy="'+cy+'" r="'+ri+'" fill="white"/>';
-  center+='<text x="'+cx+'" y="'+(cy-5)+'" text-anchor="middle" fill="#0f172a" font-size="22" font-weight="bold">'+total+'</text>';
-  center+='<text x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle" fill="#64748b" font-size="11">total</text>';
-  el.innerHTML=svg(W2,H2,paths+center+legItems);
-  el.querySelectorAll('.donut-seg').forEach(function(seg){
-    seg.addEventListener('mouseover',function(e){seg.setAttribute('opacity','1');tOn(e,'<b style="color:#e2e8f0">'+seg.dataset.label+'</b><br><span style="color:#7dd3fc">'+seg.dataset.val+' obras · '+seg.dataset.pct+'%</span>');});
-    seg.addEventListener('mousemove',tMv);
-    seg.addEventListener('mouseout',function(){seg.setAttribute('opacity','.9');tOff();});
-    if(onClickFn) seg.addEventListener('click',function(){onClickFn(seg.dataset.label);});
-  });
-};
+  const allVals = datasets.flatMap(ds=>ds.data.filter(v=>v!=null&&!isNaN(v)));
+  const minV = Math.min(0,...allVals), maxV = maxVal||Math.max(...allVals,1);
+  const range = maxV-minV||1;
 
-// ── LINE CHART (SVG, Curva S) ────────────────────────────────────
-W.renderLineSVG = function(containerId, labels, datasets, yMin, yMax){
-  var el=document.getElementById(containerId); if(!el) return;
-  var W2=560, H2=230, pL=38, pR=16, pT=32, pB=26;
-  var cW=W2-pL-pR, cH=H2-pT-pB;
-  var allV=[];datasets.forEach(function(d){d.data.forEach(function(v){if(v!=null)allV.push(v);});});
-  var minV=yMin!=null?yMin:0, maxV=yMax!=null?yMax:Math.max.apply(null,allV.concat([1]));
-  var rng=maxV-minV||1;
-  function xP(i){return pL+(i/(labels.length-1||1))*cW;}
-  function yP(v){return pT+cH-((v-minV)/rng)*cH;}
-  var content='';
-  // grid
-  for(var gi=0;gi<=5;gi++){
-    var gv=minV+rng/5*gi, gy=Math.round(yP(gv));
-    content+='<line x1="'+pL+'" y1="'+gy+'" x2="'+(pL+cW)+'" y2="'+gy+'" stroke="rgba(0,0,0,.05)" stroke-width="1"/>';
-    content+='<text x="'+(pL-4)+'" y="'+(gy+3)+'" text-anchor="end" fill="#94a3b8" font-size="9">'+Math.round(gv)+'%</text>';
-  }
-  // x labels
-  for(var li=0;li<labels.length;li++){
-    if(li%2!==0&&li!==labels.length-1)continue;
-    content+='<text x="'+Math.round(xP(li))+'" y="'+(pT+cH+16)+'" text-anchor="middle" fill="#94a3b8" font-size="9">'+labels[li]+'</text>';
-  }
-  // hoje line
-  var hx=Math.round(xP(Math.floor(labels.length*.67)));
-  content+='<line x1="'+hx+'" y1="'+pT+'" x2="'+hx+'" y2="'+(pT+cH)+'" stroke="rgba(37,99,235,.25)" stroke-width="1" stroke-dasharray="4,4"/>';
-  content+='<text x="'+hx+'" y="'+(pT-4)+'" text-anchor="middle" fill="rgba(37,99,235,.6)" font-size="9">Hoje</text>';
-  // legend
-  var lx=pL;
-  datasets.forEach(function(ds,i){
-    var col=ds.color||['#d97706','#3b82f6','#10b981'][i%3];
-    var dash=ds.dash?'stroke-dasharray="5,3"':'';
-    content+='<line x1="'+lx+'" y1="14" x2="'+(lx+18)+'" y2="14" stroke="'+col+'" stroke-width="2" '+dash+'/>';
-    content+='<text x="'+(lx+22)+'" y="18" fill="#6b7280" font-size="10">'+esc(ds.label||'')+'</text>';
-    lx+=ds.label?(ds.label.length*6+32):50;
-  });
-  // lines + fills
-  datasets.forEach(function(ds,di){
-    var col=ds.color||['#d97706','#3b82f6','#10b981'][di%3];
-    var pts=ds.data.map(function(v,i){return v!=null?{x:Math.round(xP(i)),y:Math.round(yP(v)),v:v}:null;}).filter(Boolean);
-    if(!pts.length)return;
-    // fill area
-    if(ds.fill&&pts.length>1){
-      var fillD='M '+pts[0].x+' '+(pT+cH)+' L '+pts[0].x+' '+pts[0].y;
-      pts.slice(1).forEach(function(p){fillD+=' L '+p.x+' '+p.y;});
-      fillD+=' L '+pts[pts.length-1].x+' '+(pT+cH)+' Z';
-      content+='<defs><linearGradient id="fill'+di+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+col+'" stop-opacity=".25"/><stop offset="100%" stop-color="'+col+'" stop-opacity=".03"/></linearGradient></defs>';
-      content+='<path d="'+fillD+'" fill="url(#fill'+di+')" pointer-events="none"/>';
-    }
-    var d='M '+pts[0].x+' '+pts[0].y;
-    pts.slice(1).forEach(function(p){d+=' L '+p.x+' '+p.y;});
-    var dash2=ds.dash?'stroke-dasharray="6,4"':'';
-    content+='<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="'+(ds.width||2)+'" stroke-linejoin="round" stroke-linecap="round" '+dash2+' pointer-events="none"/>';
-    // last dot
-    if(!ds.noDots&&pts.length){
-      var last=pts[pts.length-1];
-      content+='<circle cx="'+last.x+'" cy="'+last.y+'" r="5" fill="'+col+'" stroke="white" stroke-width="2" pointer-events="none"/>';
-      content+='<text x="'+(last.x+8)+'" y="'+(last.y+4)+'" fill="'+col+'" font-size="10" font-weight="bold" pointer-events="none">'+Math.round(last.v)+'%</text>';
-    }
-  });
-  el.innerHTML=svg(W2,H2,content);
-};
-
-// ── VERTICAL BAR (SVG) ───────────────────────────────────────────
-W.renderVBarSVG = function(containerId, labels, values, colors, onClickFn){
-  var el=document.getElementById(containerId); if(!el) return;
-  var n=labels.length; if(!n) return;
-  var W2=520, H2=230, pL=32, pR=12, pT=16, pB=36;
-  var cW=W2-pL-pR, cH=H2-pT-pB;
-  var maxV=Math.max.apply(null,values.concat([1]));
-  var rowW=cW/n, barW=Math.min(rowW*.65,52);
-  var content='';
-  // grid
-  for(var gi=0;gi<=4;gi++){
-    var gv=Math.round(maxV/4*gi), gy=Math.round(pT+cH-(gv/maxV)*cH);
-    content+='<line x1="'+pL+'" y1="'+gy+'" x2="'+(pL+cW)+'" y2="'+gy+'" stroke="rgba(0,0,0,.05)" stroke-width="1"/>';
-    content+='<text x="'+(pL-4)+'" y="'+(gy+3)+'" text-anchor="end" fill="#94a3b8" font-size="9">'+gv+'</text>';
-  }
-  for(var i=0;i<n;i++){
-    var v=values[i], col=(colors&&colors[i])||'#2563eb';
-    var bH=Math.round((v/maxV)*cH), bX=Math.round(pL+i*rowW+(rowW-barW)/2), bY=pT+cH-bH;
-    var center=Math.round(pL+i*rowW+rowW/2);
-    var parts=String(labels[i]).split(' ');
-    content+='<rect x="'+bX+'" y="'+bY+'" width="'+Math.round(barW-2)+'" height="'+bH+'" rx="4" fill="'+col+'" opacity=".85" class="vbar-bar" data-label="'+esc(labels[i])+'" data-val="'+v+'" style="cursor:pointer"><title>'+esc(labels[i])+': '+v+'</title></rect>';
-    if(v>0) content+='<text x="'+center+'" y="'+(bY-5)+'" text-anchor="middle" fill="#475569" font-size="11" font-weight="600" pointer-events="none">'+v+'</text>';
-    if(parts.length>=2){
-      content+='<text x="'+center+'" y="'+(pT+cH+14)+'" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">'+esc(parts[0])+'</text>';
-      content+='<text x="'+center+'" y="'+(pT+cH+25)+'" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">'+esc(parts.slice(1).join(' '))+'</text>';
+  // Grid lines
+  const gridLines=5;
+  ctx.strokeStyle='rgba(0,0,0,0.05)'; ctx.lineWidth=1;
+  for(let i=0;i<=gridLines;i++){
+    const v=minV+(range/gridLines*i);
+    if(horizontal){
+      const x=padL+((v-minV)/range)*cW;
+      ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+cH);ctx.stroke();
+      ctx.fillStyle='#94a3b8';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(yFormat(+v.toFixed(1)),x,padT+cH+14);
     } else {
-      content+='<text x="'+center+'" y="'+(pT+cH+14)+'" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">'+esc(String(labels[i]).length>10?String(labels[i]).slice(0,9)+'…':String(labels[i]))+'</text>';
+      const y=padT+cH-((v-minV)/range)*cH;
+      ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+      ctx.fillStyle='#94a3b8';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+      ctx.fillText(yFormat(+v.toFixed(1)),padL-5,y+3);
     }
   }
-  el.innerHTML=svg(W2,H2,content);
-  if(onClickFn){
-    el.querySelectorAll('.vbar-bar').forEach(function(bar){
-      bar.addEventListener('click',function(){onClickFn(bar.dataset.label);});
-      bar.addEventListener('mouseover',function(e){bar.setAttribute('opacity','1');tOn(e,'<b style="color:#e2e8f0">'+bar.dataset.label+'</b><br><span style="color:#7dd3fc">'+bar.dataset.val+' obras</span>');});
-      bar.addEventListener('mousemove',tMv);
-      bar.addEventListener('mouseout',function(){bar.setAttribute('opacity','.85');tOff();});
+
+  const nGroups=labels.length, nDS=datasets.length;
+  const groupW=horizontal?cH/nGroups:cW/nGroups;
+  const barW=Math.min((groupW*0.8)/nDS,horizontal?18:40);
+  const gap=(groupW-barW*nDS)/2;
+
+  datasets.forEach((ds,di)=>{
+    const color=ds.color||CHART_COLORS[di];
+    ds.data.forEach((val,gi)=>{
+      if(val==null||isNaN(val))return;
+      const v=+val, clampedV=Math.max(minV,Math.min(maxV,v));
+      if(horizontal){
+        const y=padT+gi*groupW+gap+di*barW;
+        const barLen=((clampedV-minV)/range)*cW;
+        const x0=padL+((0-minV)/range)*cW;
+        ctx.fillStyle=color;
+        const rr=Math.min(3,barW/2);
+        roundRect(ctx, v>=0?x0:x0+barLen, y, Math.abs(barLen), barW, rr);
+        ctx.fill();
+        ctx.fillStyle='#0f172a'; ctx.font=`bold 9px Inter,sans-serif`;
+        ctx.textAlign = v>=0?'left':'right';
+        ctx.fillText(yFormat(v), v>=0?x0+barLen+3:x0+barLen-3, y+barW/2+3);
+      } else {
+        const x=padL+gi*groupW+gap+di*barW;
+        const barH=((clampedV-minV)/range)*cH;
+        const y0=padT+cH-((Math.max(0,clampedV)-minV)/range)*cH;
+        const actualH=Math.abs(((clampedV)/range)*cH);
+        ctx.fillStyle=(colorsPerBar&&colorsPerBar[gi])||color;
+        const rr=Math.min(4,barW/2);
+        roundRect(ctx, x, y0, barW, actualH, rr);
+        ctx.fill();
+      }
+    });
+  });
+
+  // Axis labels
+  ctx.fillStyle='#94a3b8';
+  if(horizontal){
+    labels.forEach((lbl,i)=>{
+      const y=padT+i*groupW+groupW/2;
+      ctx.font='10px Inter,sans-serif';ctx.textAlign='right';
+      ctx.fillText(String(lbl).length>16?String(lbl).substring(0,16)+'…':lbl, padL-6, y+3);
+    });
+  } else {
+    labels.forEach((lbl,i)=>{
+      const x=padL+(i+0.5)*groupW;
+      const lines=String(lbl).split(' ');
+      ctx.font='10px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(lines[0],x,padT+cH+14);
+      if(lines[1]) ctx.fillText(lines[1],x,padT+cH+25);
     });
   }
-};
+}
 
-// ── MAIN DASHBOARD DRAW ──────────────────────────────────────────
-W.drawDash = function(){
-  var O=window.OBRAS||[];
-  if(!O.length) return;
+function drawLineChart(canvasId, {labels, datasets, showLegend=true, yFormat=v=>v, yMin=null, yMax=null, secondAxis=false}){
+  const el=document.getElementById(canvasId);if(!el)return;
+  const rect=el.getBoundingClientRect();const W=rect.width>10?rect.width:(el.parentElement?.getBoundingClientRect().width||500);
+  const H=el.offsetHeight||260;
+  el.width=W;el.height=H;
+  const ctx=el.getContext('2d');
+  ctx.clearRect(0,0,W,H);
 
-  var cc={};O.forEach(function(o){var c=o.cliente||'—';cc[c]=(cc[c]||0)+1;});
-  var cs=Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,14);
-  W.renderHBarSVG('cClientes',cs.map(function(x){return x[0];}),cs.map(function(x){return x[1];}),cs.map(function(){return '#2563eb';}),W.filterByClient,function(v){return v+' obra'+(v!==1?'s':'');});
+  const padL=38, padR=secondAxis?38:16, padT=showLegend?36:12, padB=28;
+  const cW=W-padL-padR, cH=H-padT-padB;
 
-  var sc={'Finalizado':0,'Em andamento':0,'Paralisada':0,'Cancelada':0,'Não iniciada':0};
-  O.forEach(function(o){var k=sc.hasOwnProperty(o.status)?o.status:'Cancelada';sc[k]++;});
-  var sk=Object.keys(sc).filter(function(k){return sc[k]>0;});
-  W.renderDonutSVG('cStatus',sk,sk.map(function(k){return sc[k];}),['#059669','#2563eb','#f59e0b','#94a3b8','#cbd5e1'],W.filterByStatus);
-
-  var cm={};O.forEach(function(o){var c=o.cliente||'—';if(!cm[c])cm[c]={r:0,l:0};cm[c].r+=Number(o.receita||0);cm[c].l+=Number(o.lucro||0);});
-  var ca=Object.entries(cm).filter(function(x){return x[1].r>0;}).map(function(x){return{k:x[0],mc:x[1].l/x[1].r};}).sort(function(a,b){return b.mc-a.mc;}).slice(0,14);
-  W.renderHBarSVG('cMargem',ca.map(function(x){return x.k;}),ca.map(function(x){return Math.round(x.mc*100);}),ca.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}),W.filterByClient,function(v){return v+'%';},20);
-
-  var ec={};O.filter(function(o){return o.status==='Em andamento';}).forEach(function(o){String(o.etapa||'').split(',').map(function(e){return e.trim();}).filter(Boolean).forEach(function(e){ec[e]=(ec[e]||0)+1;});});
-  var es=Object.entries(ec).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
-  if(es.length) W.renderHBarSVG('cEtapa',es.map(function(x){return x[0];}),es.map(function(x){return x[1];}),es.map(function(){return '#7c3aed';}),null,function(v){return v+' obra'+(v!==1?'s':'');});
-  else {
-    var el=document.getElementById('cEtapa');
-    if(el)el.innerHTML='<div style="padding:40px;text-align:center;color:#94a3b8;font-size:13px">Nenhuma obra em andamento</div>';
+  // Legend
+  if(showLegend){
+    let lx=padL;const ly=10;
+    datasets.forEach((ds,i)=>{
+      const color=ds.color||CHART_COLORS[i];
+      ctx.strokeStyle=color;ctx.lineWidth=2;
+      if(ds.dash){ctx.setLineDash([5,3]);}else ctx.setLineDash([]);
+      ctx.beginPath();ctx.moveTo(lx,ly+5);ctx.lineTo(lx+16,ly+5);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#94a3b8';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+      ctx.fillText(ds.label||'',lx+20,ly+9);
+      lx+=ctx.measureText(ds.label||'').width+38;
+    });
   }
-};
 
-W.drawDashExtra = function(){
-  var O=window.OBRAS||[]; var total=O.length||1;
-  var PESO={'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execução':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100};
-  var aO=function(o){if(o.status==='Finalizado')return 100;if(o.status==='Cancelada'||o.status==='Paralisada')return 0;return Math.max.apply(null,[5].concat(String(o.etapa||'').split(',').map(function(e){return PESO[e.trim()]||0;})));};
-  var av=O.reduce(function(s,o){return s+aO(o);},0)/total;
-  var N=9,L=[];for(var i=0;i<N;i++)L.push('S'+(i+1));
-  var cv=function(t){return 100*(3*t*t-2*t*t*t);};
-  var base=L.map(function(_,i){return Math.round(cv(i/(N-1))*.91);});
-  var prev=L.map(function(_,i){return Math.round(cv(i/(N-1)));});
-  var real=L.map(function(_,i){return i>5?null:Math.round(av*cv(i/5||1)/100);});
-  if(O.length>0){
-    W.renderLineSVG('dCurvaS',L,[
-      {label:'Base',data:base,color:'#f59e0b',dash:true,noDots:true,width:1.5},
-      {label:'Previsto',data:prev,color:'#3b82f6',noDots:true,width:2},
-      {label:'Realizado',data:real,color:'#10b981',width:3,fill:true}
-    ],0,105);
-    var fN=O.filter(function(o){return o.status==='Finalizado';}).length;
-    var aN=O.filter(function(o){return o.status==='Em andamento';}).length;
-    var pN=O.filter(function(o){return o.status==='Paralisada';}).length;
-    var cN=O.filter(function(o){return o.status==='Cancelada';}).length;
-    W.renderVBarSVG('dSemanal',['Finalizado','Em andamento','Paralisada','Cancelada'],[fN,aN,pN,cN],['#059669','#2563eb','#f59e0b','#94a3b8'],W.filterByStatus);
+  const primary=datasets.filter(ds=>!ds.axis2);
+  const secondary=datasets.filter(ds=>ds.axis2);
+  const allP=primary.flatMap(ds=>ds.data.filter(v=>v!=null&&!isNaN(v)));
+  const allS=secondary.flatMap(ds=>ds.data.filter(v=>v!=null&&!isNaN(v)));
+  const minP=yMin!==null?yMin:Math.min(0,...allP);
+  const maxP=yMax!==null?yMax:Math.max(...allP,1);
+  const rangeP=maxP-minP||1;
+  const minS=Math.min(0,...allS,0);
+  const maxS=Math.max(...allS,1);
+  const rangeS=maxS-minS||1;
+
+  // Grid
+  ctx.strokeStyle='rgba(0,0,0,0.05)';ctx.lineWidth=1;
+  for(let i=0;i<=5;i++){
+    const v=minP+(rangeP/5*i);
+    const y=padT+cH-((v-minP)/rangeP)*cH;
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+    ctx.fillStyle='#94a3b8';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';
+    ctx.fillText(yFormat(+v.toFixed(1)),padL-4,y+3);
+    if(secondAxis&&allS.length>0){
+      const v2=minS+(rangeS/5*i);
+      ctx.fillStyle='#94a3b8';ctx.textAlign='left';
+      ctx.fillText(yFormat(+v2.toFixed(1)),padL+cW+4,y+3);
+    }
   }
-  if(typeof renderEmptyEtapas==='function') renderEmptyEtapas();
-  if(typeof renderAlertasReais==='function') renderAlertasReais();
-};
 
-// Fin charts
-W.renderFin = function(){
-  var O=window.OBRAS||[];
-  var rec=O.reduce(function(s,o){return s+(o.receita||0);},0);
-  var cst=O.reduce(function(s,o){return s+(o.custo||0);},0);
-  var mca=O.filter(function(o){return o.receita>0;}).map(function(o){return o.mc;});
-  var mcA=mca.length?mca.reduce(function(a,b){return a+b;},0)/mca.length:0;
-  var negN=O.filter(function(o){return o.mc<0&&o.status!=='Cancelada';}).length;
-  function sv(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
-  var f=function(v){return v>=1e6?'R$ '+(v/1e6).toFixed(1)+'M':v>=1e3?'R$ '+(v/1e3).toFixed(0)+'k':'R$ '+Math.round(v).toLocaleString('pt-BR');};
-  sv('fKrec',f(rec));try{sv('fKrecSub',O.length+' obras');}catch(e){}
-  sv('fKcst',f(cst));sv('fKluc',f(rec-cst));
-  sv('fKmc',mca.length?(mcA*100).toFixed(1)+'%':'—');sv('fKneg',negN);
-  var byCli={};O.forEach(function(o){var c=o.cliente||'—';if(!byCli[c])byCli[c]={r:0,l:0};byCli[c].r+=Number(o.receita||0);byCli[c].l+=Number(o.lucro||0);});
-  var arr=Object.entries(byCli).map(function(x){return{k:x[0],r:x[1].r,l:x[1].l,mc:x[1].r>0?x[1].l/x[1].r:0};}).sort(function(a,b){return b.l-a.l;}).slice(0,12);
-  W.renderHBarSVG('cLucro',arr.map(function(x){return x.k;}),arr.map(function(x){return Math.max(0,Math.round(x.l));}),arr.map(function(){return '#059669';}),null,f);
-  W.renderHBarSVG('cFaixa',arr.map(function(x){return x.k;}),arr.map(function(x){return Math.round(x.mc*100);}),arr.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}),null,function(v){return v+'%';},20);
-  var tb=document.getElementById('finTable');
-  if(tb)tb.innerHTML=O.filter(function(o){return o.mc<.2;}).sort(function(a,b){return a.mc-b.mc;}).map(function(o){return '<tr><td class="td-mono">'+o.idSite+'</td><td>'+o.cliente+'</td><td>'+o.cidade+'/'+o.uf+'</td><td>'+f(o.receita)+'</td><td>'+f(o.custo)+'</td><td>'+f(o.lucro)+'</td><td>'+MC(o.mc)+'</td><td>'+(o.viabilidade||'')+'</td></tr>';}).join('');
-};
+  // X labels
+  const step=Math.max(1,Math.ceil(labels.length/10));
+  labels.forEach((lbl,i)=>{
+    if(i%step!==0&&i!==labels.length-1) return;
+    const x=padL+(i/(labels.length-1||1))*cW;
+    ctx.fillStyle='#94a3b8';ctx.font='9px Inter,sans-serif';ctx.textAlign='center';
+    ctx.fillText(String(lbl),x,padT+cH+14);
+  });
 
-// Filters
-W.filterByClient=function(c){if(typeof goTo==='function')goTo('obras',null);setTimeout(function(){var s=document.getElementById('fCli');if(s){s.value=c;if(typeof filtrar==='function')filtrar();}},60);if(typeof toast==='function')toast('🔍 '+c);};
-W.filterByStatus=function(s){if(typeof goTo==='function')goTo('obras',null);setTimeout(function(){var el=document.getElementById('fSt');if(el){el.value=s;if(typeof filtrar==='function')filtrar();}},60);if(typeof toast==='function')toast('🔍 '+s);};
+  // Draw lines
+  datasets.forEach((ds,di)=>{
+    const color=ds.color||CHART_COLORS[di];
+    const useSecond=ds.axis2&&allS.length>0;
+    const mn=useSecond?minS:minP, rng=useSecond?rangeS:rangeP;
+    const pts=ds.data.map((v,i)=>({x:padL+(i/(labels.length-1||1))*cW, y:padT+cH-((v-mn)/rng)*cH, v}));
+    const valid=pts.filter(p=>p.v!=null&&!isNaN(p.v));
+    if(valid.length<1) return;
 
-// Compat shims (so old code doesn't break)
-W.drawBarChart=function(){};W.drawLineChart=function(){};W.drawDonutChart=function(){};
-W.drawHBar=W.renderHBarSVG;W.drawDonut=W.renderDonutSVG;W.drawLine=W.renderLineSVG;W.drawVBar=W.renderVBarSVG;
-W.drawLineChartV4=W.renderLineSVG;
-W.drawSparkline=function(){};
-W.animateCounter=function(el,target,dur){if(!el)return;var t0=performance.now();(function step(now){var p=Math.min((now-t0)/(dur||600),1),e2=p<.5?2*p*p:-1+(4-2*p)*p;el.textContent=Math.round(target*e2).toLocaleString('pt-BR');if(p<1)requestAnimationFrame(step);})(t0);};
+    ctx.strokeStyle=color;ctx.lineWidth=ds.width||2;
+    if(ds.dash)ctx.setLineDash([5,3]);else ctx.setLineDash([]);
+    ctx.beginPath();
+    let first=true;
+    for(let i=0;i<pts.length;i++){
+      const p=pts[i];
+      if(p.v==null||isNaN(p.v)){first=true;continue;}
+      if(first){ctx.moveTo(p.x,p.y);first=false;}else ctx.lineTo(p.x,p.y);
+    }
+    ctx.stroke();ctx.setLineDash([]);
 
-})(window);
+    // Dots on last valid point
+    if(!ds.noDots){
+      valid.forEach((p,i)=>{
+        const isLast=i===valid.length-1;
+        if(isLast||ds.allDots){
+          ctx.beginPath();ctx.arc(p.x,p.y,isLast?4:2.5,0,Math.PI*2);
+          ctx.fillStyle=color;ctx.fill();
+          ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();
+        }
+      });
+    }
+  });
+  ctx.lineWidth=1;
+}
 
+function drawDonutChart(canvasId, {labels, data, colors}){
+  const el=document.getElementById(canvasId);if(!el)return;
+  const rect=el.getBoundingClientRect();const W=rect.width>10?rect.width:(el.parentElement?.getBoundingClientRect().width||400);
+  const H=el.offsetHeight||260;
+  el.width=W;el.height=H;
+  const ctx=el.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  const legW=130;
+  const cx=(W-legW)/2, cy=H/2, r=Math.min(cx,cy)-16;
+  const total=data.reduce((a,b)=>a+Math.max(0,b),0)||1;
+  let angle=-Math.PI/2;
+
+  data.forEach((val,i)=>{
+    if(val<=0) return;
+    const slice=(val/total)*Math.PI*2;
+    const color=(colors&&colors[i])||CHART_COLORS[i%CHART_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+slice);
+    ctx.closePath();
+    ctx.fillStyle=color;ctx.fill();
+    ctx.strokeStyle='white';ctx.lineWidth=2;ctx.stroke();
+    angle+=slice;
+  });
+  // Inner hole
+  ctx.beginPath();ctx.arc(cx,cy,r*0.55,0,Math.PI*2);
+  ctx.fillStyle='white';ctx.fill();
+
+  // Legend
+  const lx=W-legW+8;
+  labels.forEach((lbl,i)=>{
+    const ly=12+i*20;
+    if(ly+16>H) return;
+    const color=(colors&&colors[i])||CHART_COLORS[i%CHART_COLORS.length];
+    ctx.fillStyle=color;
+    ctx.beginPath();ctx.arc(lx+5,ly+5,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#475569';ctx.font='10px Inter,sans-serif';ctx.textAlign='left';
+    const shortLbl=String(lbl).length>12?String(lbl).substring(0,12)+'…':String(lbl);
+    ctx.fillText(shortLbl,lx+14,ly+9);
+  });
+}
+
+function roundRect(ctx,x,y,w,h,r){
+  if(w<0){x+=w;w=-w;}if(h<0){y+=h;h=-h;}
+  r=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+// gc() compatibility shim - just returns the element
+function gc(id){
+  const el=document.getElementById(id);
+  return el||null;
+}
 </script>
 </head>
 <body>
@@ -940,7 +901,6 @@ W.animateCounter=function(el,target,dur){if(!el)return;var t0=performance.now();
 </div>
 
 <div class="toast" id="toast"></div><script>
-
 const ETAPAS=['Abertura de obra','Elaboração de cronograma','Cotação Parceiro','Mapeamento','Projeto','Homologação','Solicitar acesso','Compra de material','Fabricação / Galvanização','Pintura','Survey','Envio de material','Execução','Laudo de verticalidade','Envio RFI','Paralisada','Cancelada','Finalizado'];
 
 // ============================================================
@@ -1074,29 +1034,157 @@ const grid={color:'rgba(0,0,0,.05)'};
 function gc(id){const el=document.getElementById(id);if(!el)return null;const ex=Chart.getChart(el);if(ex)ex.destroy();return el;}
 
 function drawDashExtra(){
-  var O=window.OBRAS||[]; var total=O.length||1;
-  var PESO={'Abertura de obra':5,'Elaboracao de cronograma':8,'Cotacao Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologacao':28,'Solicitar acesso':30,'Compra de material':35,'Fabricacao / Galvanizacao':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execucao':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100};
-  var aO=function(o){if(o.status==='Finalizado')return 100;if(o.status==='Cancelada'||o.status==='Paralisada')return 0;return Math.max.apply(null,[5].concat(String(o.etapa||'').split(',').map(function(e){return PESO[e.trim()]||0;})));};
-  var av=O.reduce(function(s,o){return s+aO(o);},0)/total;
-  var N=9,L=[];for(var i=0;i<N;i++)L.push('S'+(i+1));
-  var cv=function(t){return 100*(3*t*t-2*t*t*t);};
-  if(O.length>0&&typeof renderLineSVG==='function'){
-    var base=L.map(function(_,i){return Math.round(cv(i/(N-1))*.91);});
-    var prev=L.map(function(_,i){return Math.round(cv(i/(N-1)));});
-    var real=L.map(function(_,i){return i>5?null:Math.round(av*cv(i/5||1)/100);});
-    renderLineSVG('dCurvaS',L,[
-      {label:'Base',data:base,color:'#f59e0b',dash:true,noDots:true,width:1.5},
-      {label:'Previsto',data:prev,color:'#3b82f6',noDots:true,width:2},
-      {label:'Realizado',data:real,color:'#10b981',width:3,fill:true}
-    ],0,105);
-    var fN=O.filter(function(o){return o.status==='Finalizado';}).length;
-    var aN=O.filter(function(o){return o.status==='Em andamento';}).length;
-    var pN=O.filter(function(o){return o.status==='Paralisada';}).length;
-    var cN=O.filter(function(o){return o.status==='Cancelada';}).length;
-    renderVBarSVG('dSemanal',['Finalizado','Em andamento','Paralisada','Cancelada'],[fN,aN,pN,cN],['#059669','#2563eb','#f59e0b','#94a3b8'],filterByStatus);
+  // -------------------------------------------------------
+  // Curva S e Progresso Semanal — calculados de OBRAS reais
+  // -------------------------------------------------------
+  const totalObras = OBRAS.length;
+
+  // Se não há obras, mostrar estado vazio nos painéis
+  if(totalObras === 0){
+    renderEmptyCanvas('dCurvaS', 'Nenhuma obra cadastrada');
+    renderEmptyCanvas('dSemanal', 'Nenhuma obra cadastrada');
+    renderEmptyEtapas();
+    renderAlertasReais();
+    return;
   }
-  if(typeof renderEmptyEtapas==='function') renderEmptyEtapas();
-  if(typeof renderAlertasReais==='function') renderAlertasReais();
+
+  // --- CURVA S ---
+  // Baseada nas obras: % concluídas acumuladas por mês de cadastro
+  // Como não temos datas de avanço por semana, calculamos a curva
+  // a partir da distribuição de status das obras reais
+
+  const conc = OBRAS.filter(o=>o.status==='Finalizado').length;
+  const and  = OBRAS.filter(o=>o.status==='Em andamento').length;
+  const par  = OBRAS.filter(o=>o.status==='Paralisada').length;
+  const total = totalObras || 1;
+
+  // Percentual físico atual estimado
+  const ETAPA_PESO = {
+    'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,
+    'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,
+    'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,
+    'Survey':50,'Envio de material':60,'Execução':75,
+    'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100,
+    'Paralisada':0,'Cancelada':0
+  };
+
+  // Calcula avanço físico médio de cada obra
+  function getAvanco(o){
+    if(o.status==='Finalizado') return 100;
+    if(o.status==='Cancelada'||o.status==='Paralisada') return 0;
+    const etapas = o.etapa ? o.etapa.split(',').map(e=>e.trim()) : [];
+    const pesos = etapas.map(e=>ETAPA_PESO[e]||0).filter(p=>p>0);
+    return pesos.length ? Math.max(...pesos) : 5;
+  }
+
+  const avancoTotal = OBRAS.reduce((s,o)=>s+getAvanco(o),0) / total;
+
+  // Curva S: distribui o avanço real em 8 pontos temporais
+  // Ponto atual = hoje (posição 6 de 8)
+  const csPts = 8;
+  const csLabels = Array.from({length:csPts},(_,i)=>'S'+(i+1));
+  // Planejado: curva S ideal (100% no final)
+  const csPlanned = csLabels.map((_,i)=>{
+    const t = i/(csPts-1); return +(100*(3*t*t - 2*t*t*t)).toFixed(1);
+  });
+  // Realizado: cresce até o ponto atual (S6) com valor real, depois null
+  const curPt = 6; // ponto atual
+  const csReal = csLabels.map((_,i)=>{
+    if(i > curPt) return null;
+    const t = i/curPt;
+    return +(avancoTotal * (3*t*t - 2*t*t*t)).toFixed(1);
+  });
+
+  if(OBRAS.length > 0){
+    drawLineChart('dCurvaS',{
+      labels: csLabels,
+      datasets:[
+        {label:'Planejado', data:csPlanned, color:'#3b82f6', width:2.5, noDots:true},
+        {label:'Realizado', data:csReal,   color:'#10b981', width:3},
+      ],
+      yFormat: v=>v+'%', yMin:0, yMax:105
+    });
+  }
+
+  // --- PROGRESSO SEMANAL ---
+  // Agrupa obras por etapa atual e calcula avanço por semana (últimas 5)
+  // Como não temos histórico semanal, mostramos distribuição por status
+
+  const finN  = OBRAS.filter(o=>o.status==='Finalizado').length;
+  const andN  = OBRAS.filter(o=>o.status==='Em andamento').length;
+  const parN  = OBRAS.filter(o=>o.status==='Paralisada').length;
+  const canN  = OBRAS.filter(o=>o.status==='Cancelada').length;
+  const naoN  = OBRAS.filter(o=>o.status==='Não iniciada').length;
+
+  const swEl = document.getElementById('dSemanal');
+  if(swEl){
+    const W = swEl.getBoundingClientRect().width || 500;
+    const H = swEl.offsetHeight || 260;
+    swEl.width = W; swEl.height = H;
+    const ctx = swEl.getContext('2d');
+    ctx.clearRect(0,0,W,H);
+
+    if(totalObras === 0){
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '13px Inter,sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Nenhuma obra cadastrada', W/2, H/2);
+      return;
+    }
+
+    // Bar chart: distribuição por status
+    const barLabels = ['Finalizado','Em andamento','Paralisada','Cancelada','Não iniciada'];
+    const barData   = [finN, andN, parN, canN, naoN];
+    const barColors = ['#059669','#3b82f6','#d97706','#94a3b8','#e2e5ef'];
+    const padL=44, padR=16, padT=36, padB=32;
+    const cW=W-padL-padR, cH=H-padT-padB;
+    const maxV = Math.max(...barData, 1);
+    const barW = (cW/barLabels.length)*0.55;
+    const groupW = cW/barLabels.length;
+
+    // Title
+    ctx.fillStyle='#475569'; ctx.font='bold 11px Inter,sans-serif'; ctx.textAlign='left';
+    ctx.fillText('Distribuição por status — '+totalObras+' obra'+(totalObras>1?'s':''), padL, 16);
+
+    // Grid
+    for(let i=0;i<=4;i++){
+      const v=Math.round(maxV/4*i);
+      const y=padT+cH-v/maxV*cH;
+      ctx.strokeStyle='rgba(0,0,0,.05)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+cW,y); ctx.stroke();
+      ctx.fillStyle='#94a3b8'; ctx.font='9px Inter'; ctx.textAlign='right';
+      ctx.fillText(v, padL-4, y+3);
+    }
+
+    // Bars
+    barLabels.forEach((lbl,i)=>{
+      const v = barData[i];
+      if(v <= 0) {
+        ctx.fillStyle='#94a3b8'; ctx.font='9px Inter'; ctx.textAlign='center';
+        ctx.fillText(lbl.split(' ')[0], padL+(i+0.5)*groupW, padT+cH+14);
+        return;
+      }
+      const x = padL + i*groupW + (groupW-barW)/2;
+      const bh = v/maxV*cH;
+      const by = padT+cH-bh;
+      ctx.fillStyle = barColors[i];
+      roundRect(ctx, x, by, barW, bh, 5);
+      ctx.fill();
+      // Value label on top
+      ctx.fillStyle='#475569'; ctx.font='bold 10px Inter'; ctx.textAlign='center';
+      ctx.fillText(v, x+barW/2, by-4);
+      // X label
+      ctx.fillStyle='#94a3b8'; ctx.font='9px Inter';
+      ctx.fillText(lbl.split(' ')[0], x+barW/2, padT+cH+14);
+      if(lbl.split(' ').length>1) ctx.fillText(lbl.split(' ').slice(1).join(' '), x+barW/2, padT+cH+25);
+    });
+  }
+
+  // --- ETAPAS das obras em andamento ---
+  renderEmptyEtapas();
+
+  // --- ALERTAS reais ---
+  renderAlertasReais();
 }
 
 function renderEmptyCanvas(id, msg){
@@ -1174,58 +1262,70 @@ function renderAlertasReais(){
 
 
 function drawDash(){
-  var O=window.OBRAS||[];
-  if(!O.length) return;
-  if(typeof renderHBarSVG==='function'){
-    var cc={};O.forEach(function(o){var c=o.cliente||'---';cc[c]=(cc[c]||0)+1;});
-    var cs=Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,14);
-    renderHBarSVG('cClientes',cs.map(function(x){return x[0];}),cs.map(function(x){return x[1];}),cs.map(function(){return '#2563eb';}),filterByClient,function(v){return v+' obra'+(v!==1?'s':'');});
-    var sc={'Finalizado':0,'Em andamento':0,'Paralisada':0,'Cancelada':0,'Nao iniciada':0};
-    O.forEach(function(o){var k=sc.hasOwnProperty(o.status)?o.status:'Cancelada';sc[k]++;});
-    var sk=Object.keys(sc).filter(function(k){return sc[k]>0;});
-    renderDonutSVG('cStatus',sk,sk.map(function(k){return sc[k];}),['#059669','#2563eb','#f59e0b','#94a3b8','#cbd5e1'],filterByStatus);
-    var cm={};O.forEach(function(o){var c=o.cliente||'---';if(!cm[c])cm[c]={r:0,l:0};cm[c].r+=Number(o.receita||0);cm[c].l+=Number(o.lucro||0);});
-    var ca=Object.entries(cm).filter(function(x){return x[1].r>0;}).map(function(x){return{k:x[0],mc:x[1].l/x[1].r};}).sort(function(a,b){return b.mc-a.mc;}).slice(0,14);
-    renderHBarSVG('cMargem',ca.map(function(x){return x.k;}),ca.map(function(x){return Math.round(x.mc*100);}),ca.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}),filterByClient,function(v){return v+'%';},20);
-    var ec={};O.filter(function(o){return o.status==='Em andamento';}).forEach(function(o){String(o.etapa||'').split(',').map(function(e){return e.trim();}).filter(Boolean).forEach(function(e){ec[e]=(ec[e]||0)+1;});});
-    var es=Object.entries(ec).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
-    if(es.length) renderHBarSVG('cEtapa',es.map(function(x){return x[0];}),es.map(function(x){return x[1];}),es.map(function(){return '#7c3aed';}),null,function(v){return v+' obra'+(v!==1?'s':'');});
-  }
+  // Chart 1: Obras por cliente (bar)
+  const cc={};OBRAS.forEach(o=>{cc[o.cliente]=(cc[o.cliente]||0)+1;});
+  const cs=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  drawBarChart('cClientes',{
+    labels:cs.map(c=>c[0]),
+    datasets:[{label:'Obras',data:cs.map(c=>c[1]),color:'rgba(37,99,235,.8)'}],
+    showLegend:false, yFormat:v=>Math.round(v)
+  });
+
+  // Chart 2: Status portfólio (donut)
+  const sc={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0};
+  OBRAS.forEach(o=>{const k=['Finalizado','Em andamento','Paralisada','Cancelada'].includes(o.status)?o.status:'Cancelada';sc[k]++;});
+  drawDonutChart('cStatus',{
+    labels:Object.keys(sc),
+    data:Object.values(sc),
+    colors:['#059669','#2563eb','#d97706','#94a3b8']
+  });
+
+  // Chart 3: Margem por cliente (bar)
+  const cm={};OBRAS.forEach(o=>{if(!cm[o.cliente])cm[o.cliente]=[];if(o.receita>0)cm[o.cliente].push(o.mc);});
+  const ca=Object.entries(cm).filter(([k,v])=>v.length>0).map(([k,v])=>({k,avg:v.reduce((a,b)=>a+b,0)/v.length})).sort((a,b)=>b.avg-a.avg).slice(0,12);
+  drawBarChart('cMargem',{
+    labels:ca.map(c=>c.k),
+    datasets:[{label:'MC%',data:ca.map(c=>+(c.avg*100).toFixed(1)),color:null}],
+    showLegend:false, yFormat:v=>v+'%',
+    colorsPerBar:ca.map(c=>c.avg>=0.3?'rgba(5,150,105,.8)':c.avg>=0.15?'rgba(217,119,6,.8)':'rgba(220,38,38,.8)')
+  });
+
+  // Chart 4: Etapas em andamento (horizontal bar)
+  const ec={};OBRAS.filter(o=>o.status==='Em andamento').forEach(o=>{const e=o.etapa.split(',')[0].trim();ec[e]=(ec[e]||0)+1;});
+  const es=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,9);
+  drawBarChart('cEtapa',{
+    labels:es.map(e=>e[0].length>20?e[0].substring(0,20)+'…':e[0]),
+    datasets:[{label:'Obras',data:es.map(e=>e[1]),color:'rgba(124,58,237,.8)'}],
+    horizontal:true, showLegend:false, yFormat:v=>Math.round(v)
+  });
 }
 
 function initDash(){
-  if(!Array.isArray(window.OBRAS))window.OBRAS=[];
-  var O=OBRAS,t=O.length;
-  var co=O.filter(function(o){return o.status==='Finalizado';}).length;
-  var an=O.filter(function(o){return o.status==='Em andamento';}).length;
-  var pa=O.filter(function(o){return o.status==='Paralisada';}).length;
-  var rec=O.reduce(function(s,o){return s+(o.receita||0);},0);
-  var mca=O.filter(function(o){return o.receita>0;}).map(function(o){return o.mc;});
-  var mcA=mca.length?mca.reduce(function(a,b){return a+b;},0)/mca.length:0;
-  var f=function(v){return v>=1e6?'R$ '+(v/1e6).toFixed(1)+'M':v>=1e3?'R$ '+(v/1e3).toFixed(0)+'k':'R$ '+Math.round(v).toLocaleString('pt-BR');};
-  function sv(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
-  sv('kT',t);sv('sbTotal',t);
-  sv('kC',co);sv('kCsub',Math.round(co/(t||1)*100)+'% do portfolio');
-  sv('kA',an);sv('kAsub',Math.round(an/(t||1)*100)+'% do portfolio');
-  sv('kP',pa);sv('kPsub',Math.round(pa/(t||1)*100)+'% do portfolio');
-  sv('kRec',rec>0?f(rec):'R$ 0');
-  sv('kRecSub','MC media: '+(mca.length?(mcA*100).toFixed(1)+'%':'--'));
-  sv('dBadge','Atrasadas: '+O.filter(function(o){return String(o.statusPrazo||'').indexOf('ATRASADO')>=0;}).length);
-  var dt=document.getElementById('dTable');
-  if(dt)dt.innerHTML=O.filter(function(o){return o.status==='Em andamento';}).slice(0,15).map(function(o){
-    return '<tr onclick="openObraModal(''+o.idex+'')">'+
-      '<td class="td-mono" style="font-weight:700">'+o.idSite+'</td>'+
-      '<td style="font-size:11px;color:var(--txt3)">'+o.idex+'</td>'+
-      '<td><strong>'+o.cliente+'</strong></td>'+
-      '<td style="font-size:11px">'+o.cidade+'/'+o.uf+'</td>'+
-      '<td style="font-size:11px">'+o.etapa+'</td>'+
-      '<td style="font-size:11px">'+o.planejador+'</td>'+
-      '<td>'+R$(o.receita)+'</td>'+
-      '<td>'+MC(o.mc)+'</td>'+
-      '<td>'+bdg(o.statusPrazo)+'</td></tr>';
-  }).join('');
-  if(typeof drawDash==='function') drawDash();
-  if(typeof drawDashExtra==='function') drawDashExtra();
+  const t=OBRAS.length,co=OBRAS.filter(o=>o.status==='Finalizado').length,an=OBRAS.filter(o=>o.status==='Em andamento').length,pa=OBRAS.filter(o=>o.status==='Paralisada').length;
+  document.getElementById('kT').textContent=t;document.getElementById('sbTotal').textContent=t;
+  // Update receita KPI
+  const recTot=OBRAS.reduce((s,o)=>s+(o.receita||0),0);
+  const mcTot=OBRAS.filter(o=>o.receita>0).map(o=>o.mc);
+  const mcA=mcTot.length?mcTot.reduce((a,b)=>a+b,0)/mcTot.length:0;
+  const fmtR=v=>v>=1000000?'R$ '+(v/1000000).toFixed(1)+'M':v>=1000?'R$ '+(v/1000).toFixed(0)+'k':'R$ '+Math.round(v).toLocaleString('pt-BR');
+  const el_k=document.getElementById('kRec');if(el_k)el_k.textContent=recTot>0?fmtR(recTot):'R$ 0';
+  const el_ks=document.getElementById('kRecSub');if(el_ks)el_ks.textContent='MC média: '+(mcTot.length?(mcA*100).toFixed(1)+'%':'—');
+  document.getElementById('kC').textContent=co;document.getElementById('kCsub').textContent=Math.round(co/t*100)+'% do portfólio';
+  document.getElementById('kA').textContent=an;document.getElementById('kAsub').textContent=Math.round(an/t*100)+'% do portfólio';
+  document.getElementById('kP').textContent=pa;document.getElementById('kPsub').textContent=Math.round(pa/t*100)+'% do portfólio';
+  document.getElementById('dBadge').textContent='⏰ Atrasadas: '+OBRAS.filter(o=>o.statusPrazo==='⏰ ATRASADO').length;
+  document.getElementById('dTable').innerHTML=OBRAS.filter(o=>o.status==='Em andamento').slice(0,15).map(o=>`
+    <tr>
+      <td class="td-mono" style="font-weight:700">${o.idSite}</td>
+      <td style="font-size:11px;color:var(--txt3)">${o.idex}</td>
+      <td><strong>${o.cliente}</strong></td>
+      <td style="font-size:11px">${o.cidade}/${o.uf}</td>
+      <td style="font-size:11.5px;max-width:160px;white-space:normal;line-height:1.4">${o.etapa}</td>
+      <td style="font-size:11px">${o.planejador}</td>
+      <td style="font-size:11px">${R$(o.receita)}</td>
+      <td>${MC(o.mc)}</td><td>${bdg(o.statusPrazo)}</td>
+    </tr>`).join('');
+  drawDash();drawDashExtra();
 }
 
 // OBRAS TABLE
@@ -1653,25 +1753,36 @@ function renderClientes(){
 
 // FINANCEIRO
 function renderFin(){
-  var O=window.OBRAS||[];
-  var rec=O.reduce(function(s,o){return s+(o.receita||0);},0);
-  var cst=O.reduce(function(s,o){return s+(o.custo||0);},0);
-  var mca=O.filter(function(o){return o.receita>0;}).map(function(o){return o.mc;});
-  var mcA=mca.length?mca.reduce(function(a,b){return a+b;},0)/mca.length:0;
-  var negN=O.filter(function(o){return o.mc<0&&o.status!=='Cancelada';}).length;
-  var f=function(v){return v>=1e6?'R$ '+(v/1e6).toFixed(1)+'M':v>=1e3?'R$ '+(v/1e3).toFixed(0)+'k':'R$ '+Math.round(v).toLocaleString('pt-BR');};
-  function sv(id,v){var el=document.getElementById(id);if(el)el.textContent=v;}
-  sv('fKrec',f(rec));try{sv('fKrecSub',O.length+' obras');}catch(e){}
-  sv('fKcst',f(cst));sv('fKluc',f(rec-cst));
-  sv('fKmc',mca.length?(mcA*100).toFixed(1)+'%':'--');sv('fKneg',negN);
-  if(typeof renderHBarSVG==='function'){
-    var byCli={};O.forEach(function(o){var c=o.cliente||'---';if(!byCli[c])byCli[c]={r:0,l:0};byCli[c].r+=Number(o.receita||0);byCli[c].l+=Number(o.lucro||0);});
-    var arr=Object.entries(byCli).map(function(x){return{k:x[0],r:x[1].r,l:x[1].l,mc:x[1].r>0?x[1].l/x[1].r:0};}).sort(function(a,b){return b.l-a.l;}).slice(0,12);
-    renderHBarSVG('cLucro',arr.map(function(x){return x.k;}),arr.map(function(x){return Math.max(0,Math.round(x.l));}),arr.map(function(){return '#059669';}),null,f);
-    renderHBarSVG('cFaixa',arr.map(function(x){return x.k;}),arr.map(function(x){return Math.round(x.mc*100);}),arr.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}),null,function(v){return v+'%';},20);
-  }
-  var tb=document.getElementById('finTable');
-  if(tb)tb.innerHTML=O.filter(function(o){return o.mc<.2;}).sort(function(a,b){return a.mc-b.mc;}).map(function(o){return '<tr><td class="td-mono">'+o.idSite+'</td><td>'+o.cliente+'</td><td>'+o.cidade+'/'+o.uf+'</td><td>'+f(o.receita)+'</td><td>'+f(o.custo)+'</td><td>'+f(o.lucro)+'</td><td>'+MC(o.mc)+'</td><td>'+(o.viabilidade||'')+'</td></tr>';}).join('');
+  // Update KPI cards
+  const recT=OBRAS.reduce((s,o)=>s+(o.receita||0),0);
+  const cstT=OBRAS.reduce((s,o)=>s+(o.custo||0),0);
+  const lucT=recT-cstT;
+  const mcArr=OBRAS.filter(o=>o.receita>0).map(o=>o.mc);
+  const mcAvg=mcArr.length?mcArr.reduce((a,b)=>a+b,0)/mcArr.length:0;
+  const negN=OBRAS.filter(o=>o.mc<0&&o.status!=='Cancelada').length;
+  const fmt=v=>{if(v>=1000000)return 'R$ '+(v/1000000).toFixed(1)+'M';if(v>=1000)return 'R$ '+(v/1000).toFixed(0)+'k';return 'R$ '+Math.round(v).toLocaleString('pt-BR');};
+  const el_=id=>document.getElementById(id);
+  if(el_('fKrecTotal')){el_('fKrecTotal').textContent=recT>0?fmt(recT):'R$ 0';el_('fKrecSub').textContent=OBRAS.length+' obras';}
+  if(el_('fKcstTotal')) el_('fKcstTotal').textContent=cstT>0?fmt(cstT):'R$ 0';
+  if(el_('fKlucro')) el_('fKlucro').textContent=fmt(lucT);
+  if(el_('fKmc')) el_('fKmc').textContent=mcArr.length?(mcAvg*100).toFixed(1)+'%':'—';
+  if(el_('fKneg')) el_('fKneg').textContent=negN;
+
+  
+  const fx={'< 0%':0,'0–20%':0,'20–40%':0,'40–60%':0,'> 60%':0};
+  const lpc={};OBRAS.forEach(o=>{const p=o.mc*100;if(p<0)fx['< 0%']++;else if(p<20)fx['0–20%']++;else if(p<40)fx['20–40%']++;else if(p<60)fx['40–60%']++;else fx['> 60%']++;if(!lpc[o.cliente])lpc[o.cliente]=0;lpc[o.cliente]+=o.lucro||0;});
+  drawDonutChart('cLucro',{labels:Object.keys(lpc),data:Object.values(lpc).map(v=>Math.max(0,Math.round(v))),colors:['#2563eb','#059669','#7c3aed','#d97706','#0891b2','#dc2626','#94a3b8','#db2777']});
+  // MC% média por cliente
+  const cliMCdata={};
+  OBRAS.forEach(o=>{if(!cliMCdata[o.cliente])cliMCdata[o.cliente]={sum:0,n:0};if(o.receita>0){cliMCdata[o.cliente].sum+=o.mc;cliMCdata[o.cliente].n++;}});
+  const cliMCsorted=Object.entries(cliMCdata).filter(([k,v])=>v.n>0).map(([k,v])=>({k,avg:v.sum/v.n})).sort((a,b)=>b.avg-a.avg);
+  drawBarChart('cFaixa',{
+    labels:cliMCsorted.map(c=>c.k),
+    datasets:[{label:'MC% média',data:cliMCsorted.map(c=>+(c.avg*100).toFixed(1)),color:null}],
+    showLegend:false, yFormat:v=>v+'%',
+    colorsPerBar:cliMCsorted.map(c=>c.avg>=0.4?'rgba(5,150,105,.8)':c.avg>=0.2?'rgba(59,130,246,.8)':c.avg>=0?'rgba(217,119,6,.8)':'rgba(220,38,38,.8)')
+  });
+  document.getElementById('finTable').innerHTML=OBRAS.filter(o=>o.mc<0.2).sort((a,b)=>a.mc-b.mc).map(o=>`<tr><td class="td-mono">${o.idSite}</td><td>${o.cliente}</td><td style="font-size:11px">${o.cidade}/${o.uf}</td><td>${R$(o.receita)}</td><td>${R$(o.custo)}</td><td style="${o.lucro<0?'color:var(--red);font-weight:600':''}">${R$(o.lucro)}</td><td>${MC(o.mc)}</td><td>${o.mc>=0.30?'<span class="badge b-green">✅ Viável</span>':o.mc>=0.15?'<span class="badge b-amber">⚠️ Ajustar</span>':o.mc>=0?'<span class="badge b-red">❌ Crítico</span>':'<span class="badge b-red">🚫 Prejuízo</span>'}</td></tr>`).join('');
 }
 
 // BUSCA
@@ -1993,7 +2104,6 @@ function renderEstoqueModal(estoque){
     </div>`;
 }
 
-
 </script>
 
 <!-- MODAL GERENCIAR COLUNAS KANBAN -->
@@ -2187,7 +2297,6 @@ async function confirmarImport(){
 }
 </script>
 <script>
-
 // ============================================================
 // PATCH FINAL CONTEL — importação, financeiros, gráficos e modal
 // ============================================================
@@ -2568,7 +2677,75 @@ async function confirmarImport(){
     if(table) table.innerHTML = arr.map(([c,d])=>`
       <tr><td><strong>${c}</strong></td><td>${d.obras}</td><td>${d.co}</td><td>${d.an}</td><td>${d.pa}</td><td>${moneyText(d.rec)}</td><td>${moneyText(d.cst)}</td><td>${moneyText(d.lc)}</td><td>${MC(d.rec>0?d.lc/d.rec:0)}</td></tr>`).join('');
   };
-window.expCSV = function(){
+
+  window.renderFin = function(){
+    const recT = OBRAS.reduce((s,o)=>s+Number(normalizeObra(o).receita||0),0);
+    const cstT = OBRAS.reduce((s,o)=>s+Number(o.custo||0),0);
+    const lucT = recT - cstT;
+    const mcAvg = recT > 0 ? lucT / recT : 0;
+    const negN = OBRAS.filter(o=>Number(o.mc||0)<0 && o.status!=='Cancelada').length;
+    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+    set('fKrecTotal', moneyShort(recT)); set('fKrecSub', `${OBRAS.length} obras`); set('fKcstTotal', moneyShort(cstT)); set('fKlucro', moneyShort(lucT)); set('fKmc', (mcAvg*100).toFixed(1).replace('.',',')+'%'); set('fKneg', negN);
+    const byCli={}; OBRAS.forEach(o=>{const c=o.cliente||'—'; if(!byCli[c]) byCli[c]={rec:0,cst:0,lc:0}; byCli[c].rec+=Number(o.receita||0); byCli[c].cst+=Number(o.custo||0); byCli[c].lc+=Number(o.lucro||0);});
+    const arr=Object.entries(byCli).map(([k,d])=>({k,...d,mc:d.rec>0?d.lc/d.rec:0})).sort((a,b)=>b.lc-a.lc).slice(0,12);
+    drawBarChart('cLucro',{labels:arr.map(x=>x.k),datasets:[{label:'Lucro',data:arr.map(x=>Math.round(x.lc)),color:'#059669'}],showLegend:false,yFormat:v=>moneyShort(v)});
+    drawBarChart('cFaixa',{labels:arr.map(x=>x.k),datasets:[{label:'MC%',data:arr.map(x=>Number((x.mc*100).toFixed(1))),color:'#2563eb'}],showLegend:false,yFormat:v=>v+'%',colorsPerBar:arr.map(x=>x.mc>=.4?'#059669':x.mc>=.2?'#2563eb':x.mc>=0?'#d97706':'#dc2626')});
+    const crit = OBRAS.filter(o=>Number(o.mc||0)<.2 && o.status!=='Cancelada').sort((a,b)=>Number(a.mc||0)-Number(b.mc||0)).slice(0,40);
+    const tb=document.getElementById('finTable'); if(tb) tb.innerHTML=crit.map(o=>`<tr><td class="td-mono"><strong>${o.idSite}</strong></td><td>${o.cliente}</td><td>${o.cidade}/${o.uf}</td><td>${moneyText(o.receita)}</td><td>${moneyText(o.custo)}</td><td>${moneyText(o.lucro)}</td><td>${MC(o.mc)}</td><td>${o.viabilidade||''}</td></tr>`).join('');
+  };
+
+  window.drawDash = function(){
+    OBRAS.forEach(normalizeObra);
+    const cc={}; OBRAS.forEach(o=>{cc[o.cliente||'—']=(cc[o.cliente||'—']||0)+1;});
+    const cs=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,12);
+    drawBarChart('cClientes',{labels:cs.map(x=>x[0]),datasets:[{label:'Obras',data:cs.map(x=>x[1]),color:'#2563eb'}],showLegend:false,yFormat:v=>Math.round(v)});
+    const sc={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0,'Não iniciada':0}; OBRAS.forEach(o=>{sc[o.status] = (sc[o.status]||0)+1;});
+    drawDonutChart('cStatus',{labels:Object.keys(sc),data:Object.values(sc),colors:['#059669','#2563eb','#d97706','#94a3b8','#cbd5e1']});
+    const cm={}; OBRAS.forEach(o=>{const c=o.cliente||'—'; if(!cm[c]) cm[c]={rec:0,lc:0}; cm[c].rec+=Number(o.receita||0); cm[c].lc+=Number(o.lucro||0);});
+    const ca=Object.entries(cm).map(([k,d])=>({k,mc:d.rec>0?d.lc/d.rec:0})).sort((a,b)=>b.mc-a.mc).slice(0,12);
+    drawBarChart('cMargem',{labels:ca.map(x=>x.k),datasets:[{label:'MC%',data:ca.map(x=>Number((x.mc*100).toFixed(1))),color:'#059669'}],showLegend:false,yFormat:v=>v+'%',colorsPerBar:ca.map(x=>x.mc>=.3?'#059669':x.mc>=.15?'#d97706':'#dc2626')});
+    const ec={}; OBRAS.filter(o=>o.status==='Em andamento').forEach(o=>{String(o.etapa||'Sem etapa').split(',').map(e=>e.trim()).filter(Boolean).forEach(e=>{ec[e]=(ec[e]||0)+1;});});
+    const es=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    drawBarChart('cEtapa',{labels:es.map(x=>x[0]),datasets:[{label:'Obras',data:es.map(x=>x[1]),color:'#7c3aed'}],horizontal:true,showLegend:false,yFormat:v=>Math.round(v)});
+  };
+
+  window.drawDashExtra = function(){
+    const total = OBRAS.length || 1;
+    const PESO={'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execução':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100};
+    const avancoObra=o=>{ if(o.status==='Finalizado') return 100; if(o.status==='Cancelada'||o.status==='Paralisada') return 0; const ps=String(o.etapa||'').split(',').map(e=>PESO[e.trim()]||0); return Math.max(5,...ps); };
+    const avanco = OBRAS.reduce((s,o)=>s+avancoObra(o),0)/total;
+    const labels=['S1','S2','S3','S4','S5','S6','S7','S8'];
+    const curva=t=>100*(3*t*t-2*t*t*t);
+    const base=labels.map((_,i)=>Number((curva(i/7)*0.92).toFixed(1)));
+    const prev=labels.map((_,i)=>Number(curva(i/7).toFixed(1)));
+    const real=labels.map((_,i)=> i<=5 ? Number((avanco*curva(i/5)/100).toFixed(1)) : null);
+    drawLineChart('dCurvaS',{labels,datasets:[{label:'Base',data:base,color:'#d97706',dash:true},{label:'Previsto',data:prev,color:'#2563eb'},{label:'Realizado',data:real,color:'#059669',width:3}],yFormat:v=>v+'%',yMin:0,yMax:105});
+    const incPrev=prev.map((v,i)=>i?Number((v-prev[i-1]).toFixed(1)):v);
+    const incReal=real.map((v,i)=>v==null?null:(i?Number((v-(real[i-1]||0)).toFixed(1)):v));
+    drawLineChart('dSemanal',{labels,datasets:[{label:'Previsto acumulado',data:prev,color:'#2563eb'},{label:'Realizado acumulado',data:real,color:'#059669',width:3},{label:'Base',data:base,color:'#d97706',dash:true}],yFormat:v=>v+'%',yMin:0,yMax:105});
+    const etapas=['Abertura de obra','Elaboração de cronograma','Mapeamento','Projeto','Compra de material','Fabricação / Galvanização','Envio de material','Execução','Finalizado'];
+    const dEt=document.getElementById('dEtapas'); if(dEt) dEt.innerHTML=etapas.map(e=>{const n=OBRAS.filter(o=>String(o.etapa||'').includes(e)||o.status===e).length; const pct=Math.round(n/total*100); return `<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><strong>${e}</strong><span>${n} · ${pct}%</span></div><div class="pbar"><div class="pfill" style="width:${pct}%;background:var(--blue)"></div></div></div>`;}).join('');
+    if(typeof renderAlertasReais==='function') renderAlertasReais();
+  };
+
+  window.initDash = function(){
+    if(!Array.isArray(window.OBRAS)) window.OBRAS=[];
+    OBRAS.forEach(normalizeObra);
+    recalcParceirosTotals();
+    const t=OBRAS.length, co=OBRAS.filter(o=>o.status==='Finalizado').length, an=OBRAS.filter(o=>o.status==='Em andamento').length, pa=OBRAS.filter(o=>o.status==='Paralisada').length;
+    const recTot=OBRAS.reduce((s,o)=>s+Number(o.receita||0),0); const cstTot=OBRAS.reduce((s,o)=>s+Number(o.custo||0),0); const mcA=recTot>0?(recTot-cstTot)/recTot:0;
+    const set=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+    set('kT',t); set('sbTotal',t); set('kRec',moneyShort(recTot)); set('kRecSub','MC média: '+(mcA*100).toFixed(1).replace('.',',')+'%');
+    set('kC',co); set('kCsub',t?Math.round(co/t*100)+'% do portfólio':'0% do portfólio');
+    set('kA',an); set('kAsub',t?Math.round(an/t*100)+'% do portfólio':'0% do portfólio');
+    set('kP',pa); set('kPsub',t?Math.round(pa/t*100)+'% do portfólio':'0% do portfólio');
+    set('sbParceiros',PARCEIROS.length);
+    const dBadge=document.getElementById('dBadge'); if(dBadge) dBadge.textContent='⏰ Atrasadas: '+OBRAS.filter(o=>String(o.statusPrazo||'').includes('ATRASADO')).length;
+    const dTable=document.getElementById('dTable'); if(dTable) dTable.innerHTML=OBRAS.filter(o=>o.status==='Em andamento').slice(0,15).map(o=>`<tr><td class="td-mono" style="font-weight:700">${o.idSite}</td><td style="font-size:11px;color:var(--txt3)">${o.idex}</td><td><strong>${o.cliente}</strong></td><td style="font-size:11px">${o.cidade}/${o.uf}</td><td style="font-size:11.5px;max-width:160px;white-space:normal;line-height:1.4">${o.etapa}</td><td style="font-size:11px">${o.planejador}</td><td style="font-size:11px">${moneyText(o.receita)}</td><td>${MC(o.mc)}</td><td>${bdg(o.statusPrazo)}</td></tr>`).join('');
+    drawDash(); drawDashExtra();
+  };
+
+  window.expCSV = function(){
     const h='ID Site,IDEX,Cliente,Cidade,UF,Planejador,Analista,Etapa,Status,Receita,Custo,Lucro,MC,Prazo\n';
     const rows=(window.filtered||OBRAS).map(o=>[o.idSite,o.idex,o.cliente,o.cidade,o.uf,o.planejador,o.analista,`"${o.etapa}"`,o.status,o.receita,o.custo,o.lucro,(Number(o.mc||0)*100).toFixed(1)+'%',o.statusPrazo].join(',')).join('\n');
     const b=new Blob(['\ufeff'+h+rows],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='contel_obras.csv';a.click();
@@ -2577,7 +2754,6 @@ window.expCSV = function(){
   // normaliza dados já carregados após o load original
   setTimeout(()=>{ try{ refreshAll(); }catch(e){ console.warn('Patch refresh error', e); } }, 500);
 })();
-
 </script>
 
 
@@ -2622,5 +2798,402 @@ window.expCSV = function(){
 })();
 </script>
 
+<script>
+// ════════════════════════════════════════════════════════════════
+// CONTEL CHARTS OVERRIDE — Loaded last, overrides patch functions
+// Uses SVG: no canvas, no timing, works immediately
+// ════════════════════════════════════════════════════════════════
+
+(function() {
+
+// ── Tooltip ────────────────────────────────────────────────────
+var TIP;
+function ensureTip() {
+  if (TIP) return;
+  TIP = document.createElement('div');
+  TIP.style.cssText = 'position:fixed;background:#0f172a;color:#f8fafc;padding:8px 12px;border-radius:8px;font:500 12px Inter,sans-serif;pointer-events:none;z-index:9999;opacity:0;transition:opacity .1s;box-shadow:0 8px 24px rgba(0,0,0,.3);line-height:1.5;max-width:220px;white-space:nowrap';
+  document.body.appendChild(TIP);
+}
+function tOn(e, h) { ensureTip(); TIP.innerHTML = h; TIP.style.opacity = '1'; tMv(e); }
+function tMv(e) { if (!TIP) return; TIP.style.left = Math.min(e.clientX + 14, innerWidth - 240) + 'px'; TIP.style.top = Math.max(4, e.clientY - 8) + 'px'; }
+function tOff() { if (TIP) TIP.style.opacity = '0'; }
+
+// ── SVG helpers ────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function mkSVG(w, h, body) {
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" width="100%" style="display:block;overflow:visible">' + body + '</svg>';
+}
+function setEl(id, html) {
+  var el = document.getElementById(id);
+  if (el) el.innerHTML = html;
+  return el;
+}
+function fmt(v) {
+  v = Number(v) || 0;
+  if (v >= 1e6) return 'R$ ' + (v/1e6).toFixed(1) + 'M';
+  if (v >= 1e3) return 'R$ ' + (v/1e3).toFixed(0) + 'k';
+  return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+}
+
+// ── HORIZONTAL BAR ─────────────────────────────────────────────
+function hBar(containerId, labels, values, colors, clickFn, valFmt, metaAt) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var n = labels.length;
+  if (!n) { el.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8">Sem dados</div>'; return; }
+
+  var W = 560, rowH = 34, padL = 162, padR = 68, padT = 8, barH = 19;
+  var cW = W - padL - padR, H = padT * 2 + n * rowH;
+  var maxV = Math.max.apply(null, values.concat([1]));
+  var parts = '';
+
+  for (var i = 0; i < n; i++) {
+    var v = values[i];
+    var bW = Math.max(0, Math.round((v / maxV) * cW));
+    var y = padT + i * rowH;
+    var bY = y + (rowH - barH) / 2;
+    var col = (colors && colors[i]) || '#2563eb';
+    var vs = valFmt ? valFmt(v) : String(v);
+    var lbl = String(labels[i]);
+    if (lbl.length > 20) lbl = lbl.slice(0, 19) + '…';
+
+    // track
+    parts += '<rect x="' + padL + '" y="' + bY + '" width="' + cW + '" height="' + barH + '" rx="4" fill="rgba(0,0,0,.04)"/>';
+    // bar
+    if (bW > 0) {
+      parts += '<rect class="hb" x="' + padL + '" y="' + bY + '" width="' + bW + '" height="' + barH + '" rx="4" fill="' + esc(col) + '" opacity=".85"' +
+        ' data-i="' + i + '" data-label="' + esc(String(labels[i])) + '" data-val="' + esc(vs) + '"' +
+        (clickFn ? ' style="cursor:pointer"' : '') + '/>';
+    }
+    // value label
+    if (bW > 52) {
+      parts += '<text x="' + (padL + bW - 7) + '" y="' + (bY + barH/2 + 4) + '" text-anchor="end" fill="white" font-size="11" font-weight="600" pointer-events="none">' + esc(vs) + '</text>';
+    } else {
+      parts += '<text x="' + (padL + Math.max(bW, 0) + 6) + '" y="' + (bY + barH/2 + 4) + '" fill="#64748b" font-size="11" font-weight="600" pointer-events="none">' + esc(vs) + '</text>';
+    }
+    // row label
+    parts += '<text x="' + (padL - 10) + '" y="' + (bY + barH/2 + 4) + '" text-anchor="end" fill="#374151" font-size="11.5" pointer-events="none">' + esc(lbl) + '</text>';
+  }
+
+  if (metaAt != null) {
+    var mx = padL + Math.round((metaAt / maxV) * cW);
+    parts += '<line x1="' + mx + '" y1="' + padT + '" x2="' + mx + '" y2="' + (padT + n * rowH) + '" stroke="rgba(220,38,38,.5)" stroke-width="1.5" stroke-dasharray="4,3"/>';
+    parts += '<text x="' + (mx + 3) + '" y="' + (padT + 11) + '" fill="#dc2626" font-size="9">meta ' + metaAt + '%</text>';
+  }
+
+  el.innerHTML = mkSVG(W, H, parts);
+
+  el.querySelectorAll('.hb').forEach(function(b) {
+    b.addEventListener('mouseover', function(e) { b.setAttribute('opacity', '1'); tOn(e, '<b style="color:#e2e8f0">' + b.dataset.label + '</b><br><span style="color:#7dd3fc">' + b.dataset.val + '</span>'); });
+    b.addEventListener('mousemove', tMv);
+    b.addEventListener('mouseout', function() { b.setAttribute('opacity', '.85'); tOff(); });
+    if (clickFn) b.addEventListener('click', function() { clickFn(b.dataset.label, parseInt(b.dataset.i)); });
+  });
+}
+
+// ── DONUT ──────────────────────────────────────────────────────
+function donut(containerId, labels, data, colors, clickFn) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var total = data.reduce(function(a,b) { return a + Math.max(0,b); }, 0) || 1;
+  var W = 460, H = 270, cx = 140, cy = 135, r = 105, ri = 58;
+  var parts = '', a = -Math.PI / 2;
+
+  for (var i = 0; i < data.length; i++) {
+    if (data[i] <= 0) continue;
+    var sl = (data[i] / total) * Math.PI * 2;
+    var col = (colors && colors[i]) || '#2563eb';
+    var x1 = cx + r * Math.cos(a), y1 = cy + r * Math.sin(a);
+    var x2 = cx + r * Math.cos(a + sl), y2 = cy + r * Math.sin(a + sl);
+    var lg = sl > Math.PI ? 1 : 0;
+    var pct = Math.round(data[i] / total * 100);
+    var d = 'M ' + cx + ' ' + cy + ' L ' + x1.toFixed(1) + ' ' + y1.toFixed(1) + ' A ' + r + ' ' + r + ' 0 ' + lg + ' 1 ' + x2.toFixed(1) + ' ' + y2.toFixed(1) + ' Z';
+    parts += '<path d="' + d + '" fill="' + esc(col) + '" opacity=".9" class="ds"' +
+      ' data-label="' + esc(String(labels[i])) + '" data-val="' + data[i] + '" data-pct="' + pct + '"' +
+      (clickFn ? ' style="cursor:pointer"' : '') + '/>';
+    // legend
+    var ly = 18 + i * 26;
+    parts += '<circle cx="' + (cx + r + 26) + '" cy="' + (ly + 6) + '" r="5" fill="' + esc(col) + '"/>';
+    var lb = String(labels[i]); if (lb.length > 14) lb = lb.slice(0,13)+'…';
+    parts += '<text x="' + (cx + r + 38) + '" y="' + (ly + 10) + '" fill="#374151" font-size="12">' + esc(lb) + '</text>';
+    parts += '<text x="' + (cx + r + 38) + '" y="' + (ly + 23) + '" fill="#94a3b8" font-size="10">' + data[i] + ' · ' + pct + '%</text>';
+    a += sl;
+  }
+  // hole
+  parts += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" fill="white"/>';
+  parts += '<text x="' + cx + '" y="' + (cy - 4) + '" text-anchor="middle" fill="#0f172a" font-size="24" font-weight="700">' + total + '</text>';
+  parts += '<text x="' + cx + '" y="' + (cy + 15) + '" text-anchor="middle" fill="#64748b" font-size="11">obras</text>';
+
+  el.innerHTML = mkSVG(W, H, parts);
+  el.querySelectorAll('.ds').forEach(function(seg) {
+    seg.addEventListener('mouseover', function(e) { seg.setAttribute('opacity','1'); tOn(e, '<b style="color:#e2e8f0">'+seg.dataset.label+'</b><br><span style="color:#7dd3fc">'+seg.dataset.val+' · '+seg.dataset.pct+'%</span>'); });
+    seg.addEventListener('mousemove', tMv);
+    seg.addEventListener('mouseout', function() { seg.setAttribute('opacity','.9'); tOff(); });
+    if (clickFn) seg.addEventListener('click', function() { clickFn(seg.dataset.label); });
+  });
+}
+
+// ── LINE CHART ─────────────────────────────────────────────────
+function lineChart(containerId, labels, datasets) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var W = 560, H = 230, pL = 36, pR = 14, pT = 30, pB = 24;
+  var cW = W - pL - pR, cH = H - pT - pB;
+  var allV = [];
+  datasets.forEach(function(d) { d.data.forEach(function(v) { if (v != null) allV.push(v); }); });
+  var maxV = Math.max.apply(null, allV.concat([100]));
+  var minV = 0;
+  var rng = maxV - minV || 1;
+  function xP(i) { return pL + (i / (labels.length - 1 || 1)) * cW; }
+  function yP(v) { return pT + cH - ((v - minV) / rng) * cH; }
+  var parts = '';
+
+  // grid
+  for (var gi = 0; gi <= 4; gi++) {
+    var gv = Math.round(minV + rng / 4 * gi);
+    var gy = Math.round(yP(gv));
+    parts += '<line x1="' + pL + '" y1="' + gy + '" x2="' + (pL+cW) + '" y2="' + gy + '" stroke="rgba(0,0,0,.05)" stroke-width="1"/>';
+    parts += '<text x="' + (pL-3) + '" y="' + (gy+3) + '" text-anchor="end" fill="#94a3b8" font-size="9">' + gv + '%</text>';
+  }
+  // x labels
+  for (var li = 0; li < labels.length; li++) {
+    if (li % 2 !== 0 && li !== labels.length-1) continue;
+    parts += '<text x="' + Math.round(xP(li)) + '" y="' + (pT+cH+14) + '" text-anchor="middle" fill="#94a3b8" font-size="9">' + labels[li] + '</text>';
+  }
+  // hoje
+  var hx = Math.round(xP(Math.floor(labels.length * .67)));
+  parts += '<line x1="' + hx + '" y1="' + pT + '" x2="' + hx + '" y2="' + (pT+cH) + '" stroke="rgba(37,99,235,.25)" stroke-width="1" stroke-dasharray="4,4"/>';
+  parts += '<text x="' + hx + '" y="' + (pT-3) + '" text-anchor="middle" fill="rgba(37,99,235,.6)" font-size="9">Hoje</text>';
+  // legend
+  var lx = pL;
+  datasets.forEach(function(ds, i) {
+    var col = ds.color || ['#d97706','#3b82f6','#10b981'][i%3];
+    var dd = ds.dash ? 'stroke-dasharray="5,3"' : '';
+    parts += '<line x1="' + lx + '" y1="13" x2="' + (lx+16) + '" y2="13" stroke="' + col + '" stroke-width="2" ' + dd + '/>';
+    parts += '<text x="' + (lx+20) + '" y="17" fill="#6b7280" font-size="10">' + esc(ds.label||'') + '</text>';
+    lx += (ds.label||'').length * 6 + 30;
+  });
+
+  // lines
+  datasets.forEach(function(ds, di) {
+    var col = ds.color || ['#d97706','#3b82f6','#10b981'][di%3];
+    var pts = [];
+    ds.data.forEach(function(v, i) { if (v != null) pts.push({x: Math.round(xP(i)), y: Math.round(yP(v)), v: v}); });
+    if (!pts.length) return;
+    // fill
+    if (ds.fill && pts.length > 1) {
+      var fd = 'M ' + pts[0].x + ' ' + (pT+cH);
+      pts.forEach(function(p) { fd += ' L ' + p.x + ' ' + p.y; });
+      fd += ' L ' + pts[pts.length-1].x + ' ' + (pT+cH) + ' Z';
+      parts += '<defs><linearGradient id="g' + di + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + col + '" stop-opacity=".25"/><stop offset="100%" stop-color="' + col + '" stop-opacity=".03"/></linearGradient></defs>';
+      parts += '<path d="' + fd + '" fill="url(#g' + di + ')" pointer-events="none"/>';
+    }
+    var pd = 'M ' + pts[0].x + ' ' + pts[0].y;
+    pts.slice(1).forEach(function(p) { pd += ' L ' + p.x + ' ' + p.y; });
+    var dd2 = ds.dash ? 'stroke-dasharray="6,4"' : '';
+    parts += '<path d="' + pd + '" fill="none" stroke="' + col + '" stroke-width="' + (ds.width||2) + '" stroke-linejoin="round" stroke-linecap="round" ' + dd2 + ' pointer-events="none"/>';
+    if (!ds.noDots && pts.length) {
+      var last = pts[pts.length-1];
+      parts += '<circle cx="' + last.x + '" cy="' + last.y + '" r="4" fill="' + col + '" stroke="white" stroke-width="2" pointer-events="none"/>';
+    }
+  });
+
+  el.innerHTML = mkSVG(W, H, parts);
+}
+
+// ── VERTICAL BAR ───────────────────────────────────────────────
+function vBar(containerId, labels, values, colors, clickFn) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var n = labels.length;
+  var W = 520, H = 230, pL = 30, pR = 10, pT = 16, pB = 36;
+  var cW = W - pL - pR, cH = H - pT - pB;
+  var maxV = Math.max.apply(null, values.concat([1]));
+  var rowW = cW / n, barW = Math.min(rowW * .65, 52);
+  var parts = '';
+
+  for (var gi = 0; gi <= 4; gi++) {
+    var gv = Math.round(maxV / 4 * gi), gy = Math.round(pT + cH - (gv/maxV)*cH);
+    parts += '<line x1="' + pL + '" y1="' + gy + '" x2="' + (pL+cW) + '" y2="' + gy + '" stroke="rgba(0,0,0,.05)" stroke-width="1"/>';
+    parts += '<text x="' + (pL-3) + '" y="' + (gy+3) + '" text-anchor="end" fill="#94a3b8" font-size="9">' + gv + '</text>';
+  }
+  for (var i = 0; i < n; i++) {
+    var v = values[i], col = (colors && colors[i]) || '#2563eb';
+    var bH = Math.round((v/maxV)*cH), bX = Math.round(pL + i*rowW + (rowW-barW)/2), bY = pT + cH - bH;
+    var center = Math.round(pL + i*rowW + rowW/2);
+    parts += '<rect x="' + bX + '" y="' + bY + '" width="' + Math.round(barW-2) + '" height="' + bH + '" rx="4" fill="' + esc(col) + '" opacity=".85" class="vb"' +
+      ' data-label="' + esc(String(labels[i])) + '" data-val="' + v + '"' +
+      (clickFn ? ' style="cursor:pointer"' : '') + '/>';
+    if (v > 0) parts += '<text x="' + center + '" y="' + (bY-4) + '" text-anchor="middle" fill="#475569" font-size="11" font-weight="600" pointer-events="none">' + v + '</text>';
+    var parts2 = String(labels[i]).split(' ');
+    if (parts2.length >= 2) {
+      parts += '<text x="' + center + '" y="' + (pT+cH+13) + '" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">' + esc(parts2[0]) + '</text>';
+      parts += '<text x="' + center + '" y="' + (pT+cH+24) + '" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">' + esc(parts2.slice(1).join(' ')) + '</text>';
+    } else {
+      parts += '<text x="' + center + '" y="' + (pT+cH+13) + '" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">' + esc(String(labels[i]).length>10?String(labels[i]).slice(0,9)+'…':String(labels[i])) + '</text>';
+    }
+  }
+  el.innerHTML = mkSVG(W, H, parts);
+  if (clickFn) {
+    el.querySelectorAll('.vb').forEach(function(b) {
+      b.addEventListener('mouseover', function(e) { b.setAttribute('opacity','1'); tOn(e,'<b style="color:#e2e8f0">'+b.dataset.label+'</b><br><span style="color:#7dd3fc">'+b.dataset.val+' obras</span>'); });
+      b.addEventListener('mousemove', tMv);
+      b.addEventListener('mouseout', function() { b.setAttribute('opacity','.85'); tOff(); });
+      b.addEventListener('click', function() { clickFn(b.dataset.label); });
+    });
+  }
+}
+
+// ── FILTER HELPERS ─────────────────────────────────────────────
+function goFilter(field, value) {
+  if (typeof goTo === 'function') goTo('obras', null);
+  setTimeout(function() {
+    var el = document.getElementById(field);
+    if (el) { el.value = value; if (typeof filtrar === 'function') filtrar(); }
+  }, 80);
+  if (typeof toast === 'function') toast('🔍 ' + value);
+}
+
+// ── MAIN DRAW FUNCTIONS ────────────────────────────────────────
+function doDash() {
+  var O = window.OBRAS || [];
+  if (!O.length) return;
+
+  var cc = {};
+  O.forEach(function(o) { var c = o.cliente||'—'; cc[c] = (cc[c]||0) + 1; });
+  var cs = Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,14);
+  hBar('cClientes', cs.map(function(x){return x[0];}), cs.map(function(x){return x[1];}),
+    cs.map(function(){return '#2563eb';}),
+    function(lbl){goFilter('fCli', lbl);},
+    function(v){return v+' obra'+(v!==1?'s':'' );});
+
+  var sc = {Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0,'Não iniciada':0};
+  O.forEach(function(o){ var k = sc.hasOwnProperty(o.status)?o.status:'Cancelada'; sc[k]++; });
+  var sk = Object.keys(sc).filter(function(k){return sc[k]>0;});
+  donut('cStatus', sk, sk.map(function(k){return sc[k];}),
+    ['#059669','#2563eb','#f59e0b','#94a3b8','#cbd5e1'],
+    function(lbl){goFilter('fSt', lbl);});
+
+  var cm = {};
+  O.forEach(function(o){ var c=o.cliente||'—'; if(!cm[c])cm[c]={r:0,l:0}; cm[c].r+=Number(o.receita||0); cm[c].l+=Number(o.lucro||0); });
+  var ca = Object.entries(cm).filter(function(x){return x[1].r>0;})
+    .map(function(x){return {k:x[0], mc:x[1].l/x[1].r};})
+    .sort(function(a,b){return b.mc-a.mc;}).slice(0,14);
+  hBar('cMargem', ca.map(function(x){return x.k;}), ca.map(function(x){return Math.round(x.mc*100);}),
+    ca.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}),
+    function(lbl){goFilter('fCli', lbl);},
+    function(v){return v+'%';}, 20);
+
+  var ec = {};
+  O.filter(function(o){return o.status==='Em andamento';}).forEach(function(o){
+    String(o.etapa||'').split(',').map(function(e){return e.trim();}).filter(Boolean)
+      .forEach(function(e){ ec[e]=(ec[e]||0)+1; });
+  });
+  var es = Object.entries(ec).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  if (es.length) {
+    hBar('cEtapa', es.map(function(x){return x[0];}), es.map(function(x){return x[1];}),
+      es.map(function(){return '#7c3aed';}), null, function(v){return v+' obra'+(v!==1?'s':'');});
+  } else {
+    var eel = document.getElementById('cEtapa');
+    if (eel) eel.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Nenhuma obra em andamento</div>';
+  }
+}
+
+function doDashExtra() {
+  var O = window.OBRAS || [];
+  var total = O.length || 1;
+  var PESO = {'Abertura de obra':5,'Elaboração de cronograma':8,'Cotação Parceiro':10,'Mapeamento':15,'Projeto':20,'Homologação':28,'Solicitar acesso':30,'Compra de material':35,'Fabricação / Galvanização':45,'Pintura':55,'Survey':50,'Envio de material':60,'Execução':75,'Laudo de verticalidade':88,'Envio RFI':94,'Finalizado':100};
+  var aO = function(o) {
+    if (o.status==='Finalizado') return 100;
+    if (o.status==='Cancelada'||o.status==='Paralisada') return 0;
+    return Math.max.apply(null, [5].concat(String(o.etapa||'').split(',').map(function(e){return PESO[e.trim()]||0;})));
+  };
+  var av = O.reduce(function(s,o){return s+aO(o);},0)/total;
+  var N = 9, L = [];
+  for (var i=0;i<N;i++) L.push('S'+(i+1));
+  var cv = function(t){return 100*(3*t*t-2*t*t*t);};
+  if (O.length > 0) {
+    var base = L.map(function(_,i){return Math.round(cv(i/(N-1))*.91);});
+    var prev = L.map(function(_,i){return Math.round(cv(i/(N-1)));});
+    var real = L.map(function(_,i){return i>5?null:Math.round(av*cv(i/5||1)/100);});
+    lineChart('dCurvaS', L, [
+      {label:'Base',    data:base, color:'#f59e0b', dash:true, noDots:true, width:1.5},
+      {label:'Previsto',data:prev, color:'#3b82f6', noDots:true, width:2},
+      {label:'Realizado',data:real,color:'#10b981', width:3, fill:true}
+    ]);
+    var fN=O.filter(function(o){return o.status==='Finalizado';}).length;
+    var aN=O.filter(function(o){return o.status==='Em andamento';}).length;
+    var pN=O.filter(function(o){return o.status==='Paralisada';}).length;
+    var cN=O.filter(function(o){return o.status==='Cancelada';}).length;
+    vBar('dSemanal',['Finalizado','Em andamento','Paralisada','Cancelada'],[fN,aN,pN,cN],
+      ['#059669','#2563eb','#f59e0b','#94a3b8'],
+      function(lbl){goFilter('fSt', lbl);});
+  }
+  if (typeof renderEmptyEtapas==='function') renderEmptyEtapas();
+  if (typeof renderAlertasReais==='function') renderAlertasReais();
+}
+
+function doFinCharts() {
+  var O = window.OBRAS || [];
+  var byCli = {};
+  O.forEach(function(o){ var c=o.cliente||'—'; if(!byCli[c])byCli[c]={r:0,l:0}; byCli[c].r+=Number(o.receita||0); byCli[c].l+=Number(o.lucro||0); });
+  var arr = Object.entries(byCli).map(function(x){return{k:x[0],r:x[1].r,l:x[1].l,mc:x[1].r>0?x[1].l/x[1].r:0};}).sort(function(a,b){return b.l-a.l;}).slice(0,12);
+  hBar('cLucro', arr.map(function(x){return x.k;}), arr.map(function(x){return Math.max(0,Math.round(x.l));}), arr.map(function(){return '#059669';}), null, fmt);
+  hBar('cFaixa', arr.map(function(x){return x.k;}), arr.map(function(x){return Math.round(x.mc*100);}), arr.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}), null, function(v){return v+'%';}, 20);
+}
+
+// ── OVERRIDE window functions AFTER patch runs ─────────────────
+// The patch (script 3) already set window.drawDash etc.
+// We override them here, running LAST.
+window.drawDash      = doDash;
+window.drawDashExtra = doDashExtra;
+
+// Override initDash to call our versions
+var _origInitDash = window.initDash;
+window.initDash = function() {
+  if (_origInitDash) _origInitDash.apply(this, arguments);
+  // After updating KPIs, draw our charts
+  setTimeout(function() { doDash(); doDashExtra(); }, 10);
+};
+
+// Override renderFin to also draw fin charts
+var _origRenderFin = window.renderFin;
+window.renderFin = function() {
+  if (_origRenderFin) _origRenderFin.apply(this, arguments);
+  setTimeout(doFinCharts, 10);
+};
+
+// Boot: draw charts when everything is loaded
+function boot() {
+  if (window.OBRAS && Array.isArray(window.OBRAS) && window.OBRAS.length > 0) {
+    doDash();
+    doDashExtra();
+  }
+}
+
+// Multiple boot attempts to catch whichever fires after data loads
+if (document.readyState === 'complete') {
+  setTimeout(boot, 100);
+} else {
+  window.addEventListener('load', function() { setTimeout(boot, 100); });
+}
+setTimeout(boot, 500);
+setTimeout(boot, 1500);
+
+// Hook into data loading: whenever OBRAS changes, redraw
+var _loadData = window.loadData;
+if (_loadData) {
+  window.loadData = function() {
+    var result = _loadData.apply(this, arguments);
+    if (result && typeof result.then === 'function') {
+      result.then(function() { setTimeout(function(){ doDash(); doDashExtra(); }, 200); });
+    }
+    return result;
+  };
+}
+
+})();
+
+</script>
 </body>
 </html>
