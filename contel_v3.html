@@ -87,7 +87,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:10
 .ph-title{font-family:var(--font2);font-size:13px;font-weight:700;}
 .ph-sub{font-size:11px;color:var(--txt3);margin-top:1px;}
 .ph-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-.pb{padding:20px;}
+.pb{padding:14px;}
 .pb0{padding:0;}
 
 /* BADGES */
@@ -123,8 +123,8 @@ tbody tr:hover td{background:var(--surface2);}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
 .ch{position:relative;height:240px;}
-.ch2{position:relative;height:290px;}
-.ch3{position:relative;height:340px;}
+.ch2{position:relative;height:210px;}
+.ch3{position:relative;height:225px;}
 .pbar{height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;min-width:50px;}
 .pfill{height:100%;border-radius:3px;}
 
@@ -523,21 +523,21 @@ function gc(id){
     <div class="g2">
       <div class="panel">
         <div class="ph"><div><div class="ph-title">Obras por cliente</div><div class="ph-sub">Top clientes por volume</div></div></div>
-        <div class="pb"><div class="ch2"><canvas id="cClientes"></canvas></div></div>
+        <div class="pb"><div class="ch2"><div id="cClientes" style="width:100%;height:100%;min-height:0"></div></div></div>
       </div>
       <div class="panel">
         <div class="ph"><div><div class="ph-title">Status do portfólio</div><div class="ph-sub">Distribuição por status</div></div></div>
-        <div class="pb"><div class="ch2"><canvas id="cStatus"></canvas></div></div>
+        <div class="pb"><div class="ch2"><div id="cStatus" style="width:100%;height:100%;min-height:0"></div></div></div>
       </div>
     </div>
     <div class="g2">
       <div class="panel">
         <div class="ph"><div><div class="ph-title">Margem de contribuição por cliente</div><div class="ph-sub">MC% média — verde ≥30%, amarelo 15–30%, vermelho &lt;15%</div></div></div>
-        <div class="pb"><div class="ch3"><canvas id="cMargem"></canvas></div></div>
+        <div class="pb"><div class="ch3"><div id="cMargem" style="width:100%;height:100%;min-height:0"></div></div></div>
       </div>
       <div class="panel">
         <div class="ph"><div><div class="ph-title">Obras em andamento por etapa</div><div class="ph-sub">Onde está concentrada a execução</div></div></div>
-        <div class="pb"><div class="ch3"><canvas id="cEtapa"></canvas></div></div>
+        <div class="pb"><div class="ch3"><div id="cEtapa" style="width:100%;height:100%;min-height:0"></div></div></div>
       </div>
     </div>
     <!-- ROW 3: Curva S + Progresso Semanal -->
@@ -555,7 +555,7 @@ function gc(id){
             <span class="badge b-green" style="background:#ecfdf5;color:#065f46">Ao vivo</span>
           </div>
         </div>
-        <div class="pb"><div class="ch2"><canvas id="dCurvaS"></canvas></div></div>
+        <div class="pb"><div class="ch2"><div id="dCurvaS" style="width:100%;height:100%;min-height:0"></div></div></div>
       </div>
       <div class="panel">
         <div class="ph">
@@ -569,7 +569,7 @@ function gc(id){
             <span class="badge b-green">● Realizado</span>
           </div>
         </div>
-        <div class="pb"><div class="ch2"><canvas id="dSemanal"></canvas></div></div>
+        <div class="pb"><div class="ch2"><div id="dSemanal" style="width:100%;height:100%;min-height:0"></div></div></div>
       </div>
     </div>
 
@@ -837,8 +837,8 @@ function gc(id){
       <div class="kpi" style="--kc:var(--red)"><div class="kpi-lbl">MC% negativa</div><div class="kpi-val" id="fKneg">0</div><div class="kpi-sub">Obras com prejuízo</div></div>
     </div>
     <div class="g2">
-      <div class="panel"><div class="ph"><div class="ph-title">Lucro por cliente</div></div><div class="pb"><div class="ch2"><canvas id="cLucro"></canvas></div></div></div>
-      <div class="panel"><div class="ph"><div><div class="ph-title">MC% média por cliente</div><div class="ph-sub">Verde ≥40% · Azul 20–40% · Amarelo 0–20% · Vermelho negativo</div></div></div><div class="pb"><div class="ch2"><canvas id="cFaixa"></canvas></div></div></div>
+      <div class="panel"><div class="ph"><div class="ph-title">Lucro por cliente</div></div><div class="pb"><div class="ch2"><div id="cLucro" style="width:100%;height:100%;min-height:0"></div></div></div></div>
+      <div class="panel"><div class="ph"><div><div class="ph-title">MC% média por cliente</div><div class="ph-sub">Verde ≥40% · Azul 20–40% · Amarelo 0–20% · Vermelho negativo</div></div></div><div class="pb"><div class="ch2"><div id="cFaixa" style="width:100%;height:100%;min-height:0"></div></div></div></div>
     </div>
     <div class="panel">
       <div class="ph"><div class="ph-title">⚠️ Obras com MC% crítica (&lt;20%)</div></div>
@@ -2821,7 +2821,7 @@ function tOff() { if (TIP) TIP.style.opacity = '0'; }
 // ── SVG helpers ────────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function mkSVG(w, h, body) {
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" width="100%" style="display:block;overflow:visible">' + body + '</svg>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:hidden">' + body + '</svg>';
 }
 function setEl(id, html) {
   var el = document.getElementById(id);
@@ -2842,7 +2842,7 @@ function hBar(containerId, labels, values, colors, clickFn, valFmt, metaAt) {
   var n = labels.length;
   if (!n) { el.innerHTML = '<div style="padding:30px;text-align:center;color:#94a3b8">Sem dados</div>'; return; }
 
-  var W = 560, rowH = 34, padL = 162, padR = 68, padT = 8, barH = 19;
+  var W = 560, rowH = 26, padL = 155, padR = 62, padT = 6, barH = 15;
   var cW = W - padL - padR, H = padT * 2 + n * rowH;
   var maxV = Math.max.apply(null, values.concat([1]));
   var parts = '';
@@ -2867,12 +2867,12 @@ function hBar(containerId, labels, values, colors, clickFn, valFmt, metaAt) {
     }
     // value label
     if (bW > 52) {
-      parts += '<text x="' + (padL + bW - 7) + '" y="' + (bY + barH/2 + 4) + '" text-anchor="end" fill="white" font-size="11" font-weight="600" pointer-events="none">' + esc(vs) + '</text>';
+      parts += '<text x="' + (padL + bW - 7) + '" y="' + (bY + barH/2 + 4) + '" text-anchor="end" fill="white" font-size="9.5" font-weight="600" pointer-events="none">' + esc(vs) + '</text>';
     } else {
-      parts += '<text x="' + (padL + Math.max(bW, 0) + 6) + '" y="' + (bY + barH/2 + 4) + '" fill="#64748b" font-size="11" font-weight="600" pointer-events="none">' + esc(vs) + '</text>';
+      parts += '<text x="' + (padL + Math.max(bW, 0) + 6) + '" y="' + (bY + barH/2 + 4) + '" fill="#64748b" font-size="9.5" font-weight="600" pointer-events="none">' + esc(vs) + '</text>';
     }
     // row label
-    parts += '<text x="' + (padL - 10) + '" y="' + (bY + barH/2 + 4) + '" text-anchor="end" fill="#374151" font-size="11.5" pointer-events="none">' + esc(lbl) + '</text>';
+    parts += '<text x="' + (padL - 10) + '" y="' + (bY + barH/2 + 4) + '" text-anchor="end" fill="#374151" font-size="10.5" pointer-events="none">' + esc(lbl) + '</text>';
   }
 
   if (metaAt != null) {
@@ -2896,7 +2896,7 @@ function donut(containerId, labels, data, colors, clickFn) {
   var el = document.getElementById(containerId);
   if (!el) return;
   var total = data.reduce(function(a,b) { return a + Math.max(0,b); }, 0) || 1;
-  var W = 460, H = 270, cx = 140, cy = 135, r = 105, ri = 58;
+  var W = 460, H = 210, cx = 145, cy = 105, r = 78, ri = 43;
   var parts = '', a = -Math.PI / 2;
 
   for (var i = 0; i < data.length; i++) {
@@ -2912,7 +2912,7 @@ function donut(containerId, labels, data, colors, clickFn) {
       ' data-label="' + esc(String(labels[i])) + '" data-val="' + data[i] + '" data-pct="' + pct + '"' +
       (clickFn ? ' style="cursor:pointer"' : '') + '/>';
     // legend
-    var ly = 18 + i * 26;
+    var ly = 14 + i * 21;
     parts += '<circle cx="' + (cx + r + 26) + '" cy="' + (ly + 6) + '" r="5" fill="' + esc(col) + '"/>';
     var lb = String(labels[i]); if (lb.length > 14) lb = lb.slice(0,13)+'…';
     parts += '<text x="' + (cx + r + 38) + '" y="' + (ly + 10) + '" fill="#374151" font-size="12">' + esc(lb) + '</text>';
@@ -2921,7 +2921,7 @@ function donut(containerId, labels, data, colors, clickFn) {
   }
   // hole
   parts += '<circle cx="' + cx + '" cy="' + cy + '" r="' + ri + '" fill="white"/>';
-  parts += '<text x="' + cx + '" y="' + (cy - 4) + '" text-anchor="middle" fill="#0f172a" font-size="24" font-weight="700">' + total + '</text>';
+  parts += '<text x="' + cx + '" y="' + (cy - 4) + '" text-anchor="middle" fill="#0f172a" font-size="20" font-weight="700">' + total + '</text>';
   parts += '<text x="' + cx + '" y="' + (cy + 15) + '" text-anchor="middle" fill="#64748b" font-size="11">obras</text>';
 
   el.innerHTML = mkSVG(W, H, parts);
@@ -2937,7 +2937,7 @@ function donut(containerId, labels, data, colors, clickFn) {
 function lineChart(containerId, labels, datasets) {
   var el = document.getElementById(containerId);
   if (!el) return;
-  var W = 560, H = 230, pL = 36, pR = 14, pT = 30, pB = 24;
+  var W = 560, H = 190, pL = 36, pR = 14, pT = 25, pB = 22;
   var cW = W - pL - pR, cH = H - pT - pB;
   var allV = [];
   datasets.forEach(function(d) { d.data.forEach(function(v) { if (v != null) allV.push(v); }); });
@@ -3006,7 +3006,7 @@ function vBar(containerId, labels, values, colors, clickFn) {
   var el = document.getElementById(containerId);
   if (!el) return;
   var n = labels.length;
-  var W = 520, H = 230, pL = 30, pR = 10, pT = 16, pB = 36;
+  var W = 520, H = 190, pL = 30, pR = 10, pT = 14, pB = 30;
   var cW = W - pL - pR, cH = H - pT - pB;
   var maxV = Math.max.apply(null, values.concat([1]));
   var rowW = cW / n, barW = Math.min(rowW * .65, 52);
@@ -3024,7 +3024,7 @@ function vBar(containerId, labels, values, colors, clickFn) {
     parts += '<rect x="' + bX + '" y="' + bY + '" width="' + Math.round(barW-2) + '" height="' + bH + '" rx="4" fill="' + esc(col) + '" opacity=".85" class="vb"' +
       ' data-label="' + esc(String(labels[i])) + '" data-val="' + v + '"' +
       (clickFn ? ' style="cursor:pointer"' : '') + '/>';
-    if (v > 0) parts += '<text x="' + center + '" y="' + (bY-4) + '" text-anchor="middle" fill="#475569" font-size="11" font-weight="600" pointer-events="none">' + v + '</text>';
+    if (v > 0) parts += '<text x="' + center + '" y="' + (bY-4) + '" text-anchor="middle" fill="#475569" font-size="9.5" font-weight="600" pointer-events="none">' + v + '</text>';
     var parts2 = String(labels[i]).split(' ');
     if (parts2.length >= 2) {
       parts += '<text x="' + center + '" y="' + (pT+cH+13) + '" text-anchor="middle" fill="#94a3b8" font-size="10" pointer-events="none">' + esc(parts2[0]) + '</text>';
@@ -3061,7 +3061,7 @@ function doDash() {
 
   var cc = {};
   O.forEach(function(o) { var c = o.cliente||'—'; cc[c] = (cc[c]||0) + 1; });
-  var cs = Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,14);
+  var cs = Object.entries(cc).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
   hBar('cClientes', cs.map(function(x){return x[0];}), cs.map(function(x){return x[1];}),
     cs.map(function(){return '#2563eb';}),
     function(lbl){goFilter('fCli', lbl);},
@@ -3078,7 +3078,7 @@ function doDash() {
   O.forEach(function(o){ var c=o.cliente||'—'; if(!cm[c])cm[c]={r:0,l:0}; cm[c].r+=Number(o.receita||0); cm[c].l+=Number(o.lucro||0); });
   var ca = Object.entries(cm).filter(function(x){return x[1].r>0;})
     .map(function(x){return {k:x[0], mc:x[1].l/x[1].r};})
-    .sort(function(a,b){return b.mc-a.mc;}).slice(0,14);
+    .sort(function(a,b){return b.mc-a.mc;}).slice(0,8);
   hBar('cMargem', ca.map(function(x){return x.k;}), ca.map(function(x){return Math.round(x.mc*100);}),
     ca.map(function(x){return x.mc>=.30?'#059669':x.mc>=.15?'#2563eb':'#dc2626';}),
     function(lbl){goFilter('fCli', lbl);},
@@ -3089,7 +3089,7 @@ function doDash() {
     String(o.etapa||'').split(',').map(function(e){return e.trim();}).filter(Boolean)
       .forEach(function(e){ ec[e]=(ec[e]||0)+1; });
   });
-  var es = Object.entries(ec).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  var es = Object.entries(ec).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
   if (es.length) {
     hBar('cEtapa', es.map(function(x){return x[0];}), es.map(function(x){return x[1];}),
       es.map(function(){return '#7c3aed';}), null, function(v){return v+' obra'+(v!==1?'s':'');});
@@ -3195,5 +3195,206 @@ if (_loadData) {
 })();
 
 </script>
+
+
+<script>
+// ============================================================
+// PATCH V4 — Corrige gráficos + importação real da pipeline
+// Problemas corrigidos:
+// 1) gráficos SVG eram desenhados dentro de <canvas> e não apareciam;
+// 2) engine final lia window.OBRAS, mas a base real estava em OBRAS;
+// 3) STATUS da aba PLANEJAMENTO estava todo como "Não iniciada";
+// 4) CRONOGRAMA agora manda em status, prazo fim, reprogramação e finalização.
+// ============================================================
+(function(){
+  function bridge(){
+    try{ window.OBRAS = OBRAS; }catch(e){}
+    try{ window.PARCEIROS = PARCEIROS; }catch(e){}
+    try{ window.filtered = Array.isArray(filtered) ? filtered : [...OBRAS]; }catch(e){}
+    try{ window.filtP = Array.isArray(filtP) ? filtP : [...PARCEIROS]; }catch(e){}
+  }
+  window.contelBridgeData = bridge;
+
+  function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();}
+  function get(row,names){
+    const m={}; Object.keys(row||{}).forEach(k=>m[norm(k)]=row[k]);
+    for(const n of names){const k=norm(n); if(Object.prototype.hasOwnProperty.call(m,k)) return m[k];}
+    return '';
+  }
+  function brl(v){
+    if(v===null||v===undefined||v==='') return 0;
+    if(typeof v==='number') return Number.isFinite(v)?v:0;
+    let s=String(v).replace(/R\$/gi,'').replace(/%/g,'').replace(/\s/g,'').trim();
+    if(!s) return 0;
+    if(s.includes(',')&&s.includes('.')) s=s.replace(/\./g,'').replace(',','.');
+    else if(s.includes(',')) s=s.replace(',','.');
+    const n=Number(s); return Number.isFinite(n)?n:0;
+  }
+  function excelDate(v){
+    if(!v) return '';
+    if(v instanceof Date && !isNaN(v)) return v.toLocaleDateString('pt-BR');
+    if(typeof v==='number'){
+      const d=new Date(Math.round((v-25569)*86400*1000));
+      return isNaN(d)?'':d.toLocaleDateString('pt-BR');
+    }
+    return String(v).trim();
+  }
+  function statusObra(v){
+    const s=norm(v);
+    if(s.includes('CONCLUI')||s.includes('FINALIZ')) return 'Finalizado';
+    if(s.includes('PARALIS')) return 'Paralisada';
+    if(s.includes('CANCEL')) return 'Cancelada';
+    if(s.includes('NAO INICI')) return 'Não iniciada';
+    if(s.includes('ATRAS')||s.includes('ANDAMENTO')) return 'Em andamento';
+    return 'Em andamento';
+  }
+  function statusPrazo(v,status){
+    const s=String(v||'').trim();
+    if(s) return s;
+    if(status==='Finalizado') return '✅ CONCLUÍDO';
+    if(status==='Paralisada') return '⚠️ PARALISADO';
+    if(status==='Cancelada') return '🚫CANCELADO';
+    return '🕓 EM ANDAMENTO';
+  }
+  function normalize(o){
+    o.receita=brl(o.receita); o.custo=brl(o.custo); o.material=brl(o.material); o.demais=brl(o.demais); o.logistica=brl(o.logistica); o.empreita=brl(o.empreita); o.bdi=brl(o.bdi);
+    o.lucro=o.receita-o.custo;
+    o.mc=brl(o.mc); if(o.mc>1) o.mc=o.mc/100; if(o.receita>0 && (!Number.isFinite(o.mc)||o.mc===0)) o.mc=o.lucro/o.receita;
+    o.status=statusObra(o.status);
+    o.statusPrazo=statusPrazo(o.statusPrazo,o.status);
+    if(!Array.isArray(o.parceiros)) o.parceiros=[];
+    o.parceiros=o.parceiros.map(p=>({id:p.id,nome:String(p.nome||'').trim().toUpperCase(),valor:brl(p.valor)})).filter(p=>p.nome);
+    return o;
+  }
+  function refreshNow(){
+    bridge();
+    try{ if(typeof recalcParceirosTotals==='function') recalcParceirosTotals(); }catch(e){}
+    try{ filtered=[...OBRAS]; window.filtered=filtered; }catch(e){}
+    try{ filtP=[...PARCEIROS]; window.filtP=filtP; }catch(e){}
+    try{ saveData(); }catch(e){}
+    try{ renderObras(); }catch(e){}
+    try{ initSelects(); }catch(e){}
+    try{ initDash(); }catch(e){}
+    setTimeout(function(){
+      bridge();
+      try{ if(typeof drawDash==='function') drawDash(); }catch(e){console.warn(e);}
+      try{ if(typeof drawDashExtra==='function') drawDashExtra(); }catch(e){console.warn(e);}
+      try{ renderKanban(); }catch(e){}
+      try{ renderClientes(); }catch(e){}
+      try{ renderFin(); }catch(e){}
+      try{ renderParceiros(); }catch(e){}
+    },60);
+  }
+  window.contelRefreshNow = refreshNow;
+
+  window.importarPlanilha = async function(input){
+    const file=input.files&&input.files[0]; input.value=''; if(!file) return;
+    const modal=document.getElementById('mImport'), body=document.getElementById('mImportBody'), btn=document.getElementById('btnConfirmImport');
+    if(modal){modal.style.display='flex';modal.classList.add('open');}
+    if(body) body.innerHTML='<div style="text-align:center;padding:30px;color:var(--txt3)">⏳ Lendo PLANEJAMENTO, EQUIPE, ETAPA OBRA e CRONOGRAMA...</div>';
+    if(btn) btn.style.display='none';
+    window._importData=[];
+    try{
+      if(typeof XLSX==='undefined') throw new Error('Biblioteca XLSX não carregada. Mantenha internet ativa ou use uma versão com XLSX local.');
+      const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+      const wsPlan=wb.Sheets['PLANEJAMENTO']; if(!wsPlan) throw new Error('Aba PLANEJAMENTO não encontrada.');
+      const planRows=XLSX.utils.sheet_to_json(wsPlan,{defval:'',raw:true});
+
+      const equipeMap={};
+      if(wb.Sheets['EQUIPE']) XLSX.utils.sheet_to_json(wb.Sheets['EQUIPE'],{defval:'',raw:true}).forEach(r=>{
+        const id=String(get(r,['ID SITE'])||'').trim(); if(!id) return;
+        const arr=[]; for(let i=1;i<=7;i++){const nome=String(get(r,[`EQUIPE ${i}`,`EQUIPE ${i} `])||'').trim(); const valor=brl(get(r,[`VALOR${i}`,`VALOR ${i}`])); if(nome&&valor>0) arr.push({id:'p_'+norm(nome).replace(/[^A-Z0-9]/g,'_'),nome,valor});}
+        equipeMap[id]=arr;
+      });
+
+      const etapaMap={};
+      if(wb.Sheets['ETAPA OBRA']) XLSX.utils.sheet_to_json(wb.Sheets['ETAPA OBRA'],{defval:'',raw:true}).forEach(r=>{
+        const id=String(get(r,['ID SITE'])||'').trim(); if(!id) return;
+        const arr=[]; Object.keys(r).forEach(k=>{const nk=norm(k); if(nk==='ID SITE'||nk==='IDEX CONTEL') return; const v=norm(r[k]); if(['X','✓','SIM','1','TRUE','VERDADEIRO'].includes(v)) arr.push(String(k).trim());});
+        etapaMap[id]=arr.join(', ');
+      });
+
+      const cronMap={};
+      if(wb.Sheets['CRONOGRAMA']) XLSX.utils.sheet_to_json(wb.Sheets['CRONOGRAMA'],{defval:'',raw:true}).forEach(r=>{
+        const id=String(get(r,['ID SITE'])||'').trim(); if(!id) return;
+        cronMap[id]={
+          statusCron:get(r,['STATUS']),
+          prazoFim:excelDate(get(r,['PRAZO FIM'])),
+          reprogramacao:excelDate(get(r,['REPROGRAMAÇÃO','REPROGRAMACAO'])),
+          dataFinalizacao:excelDate(get(r,['DATA FINALIZAÇÃO','DATA FINALIZACAO'])),
+          diasRestantes:get(r,['DIAS RESTANTES'])
+        };
+      });
+
+      const obras=[];
+      planRows.forEach((r,idx)=>{
+        const idSite=String(get(r,['ID SITE'])||'').trim(); if(!idSite) return;
+        const cr=cronMap[idSite]||{};
+        const receita=brl(get(r,['ORÇAMENTO (RECEITA) (R$)','ORCAMENTO (RECEITA) (R$)','RECEITA','ORÇAMENTO']));
+        const custo=brl(get(r,['CUSTOS TOTAIS (R$)','CUSTO TOTAL','CUSTOS TOTAIS']));
+        const status=statusObra(cr.statusCron || get(r,['STATUS']));
+        const o=normalize({
+          idSite,
+          idex:String(get(r,['IDEX CONTEL'])||'').trim() || ('contel-'+String(idx+1).padStart(3,'0')),
+          cliente:String(get(r,['CLIENTE'])||'').trim(),
+          cidade:String(get(r,['CIDADE'])||'').trim(),
+          uf:String(get(r,['ESTADO','UF'])||'').trim(),
+          maps:String(get(r,['LOCALIZAÇÃO','LOCALIZACAO','MAPS'])||'').trim(),
+          sienge:String(get(r,['SIENGE'])||'').trim(),
+          os:String(get(r,['OS TOWER SYSTEM','OS'])||'').trim(),
+          planejador:String(get(r,['PLANEJADOR OBRA','PLANEJADOR'])||'').trim(),
+          analista:String(get(r,['ANALISTA CONTEL','ANALISTA'])||'').trim(),
+          material:brl(get(r,['MATERIAL'])), demais:brl(get(r,['FRETE/DEMAIS ITENS','FRETE','DEMAIS ITENS'])), logistica:0, empreita:brl(get(r,['VALOR EMPREITA','EMPREITA'])),
+          bdi:0, receita, custo, lucro:receita-custo, mc:brl(get(r,['M.C%','MC%','M.C %','MARGEM %'])),
+          viabilidade:String(get(r,['STATUS VIABILIDADE','VIABILIDADE'])||'').trim(),
+          etapa:etapaMap[idSite] || String(get(r,['ETAPA','ETAPA '])||'').trim() || (status==='Finalizado'?'Finalizado':'Abertura de obra'),
+          status,
+          statusPrazo:statusPrazo(cr.statusCron,status),
+          prazoFim:cr.prazoFim||'', reprogramacao:cr.reprogramacao||'', dataFinalizacao:cr.dataFinalizacao||'', diasRestantes:cr.diasRestantes||'',
+          parceiros:equipeMap[idSite]||[], estoque:null
+        });
+        obras.push(o);
+      });
+
+      window._importData=obras;
+      const qtd={Finalizado:0,'Em andamento':0,Paralisada:0,Cancelada:0,'Não iniciada':0}; obras.forEach(o=>qtd[o.status]=(qtd[o.status]||0)+1);
+      const rec=obras.reduce((s,o)=>s+o.receita,0);
+      if(body) body.innerHTML=`
+        <div style="font-weight:800;color:var(--green);margin-bottom:10px">✅ ${obras.length} obras lidas · Receita ${typeof moneyText==='function'?moneyText(rec):rec.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge b-green">Concluídas: ${qtd.Finalizado||0}</span>
+          <span class="badge b-blue">Em andamento: ${qtd['Em andamento']||0}</span>
+          <span class="badge b-amber">Paralisadas: ${qtd.Paralisada||0}</span>
+          <span class="badge b-gray">Canceladas: ${qtd.Cancelada||0}</span>
+        </div>
+        <div style="font-size:12px;color:var(--txt3);margin-bottom:10px">Status e prazo vieram da aba <b>CRONOGRAMA</b>. A reprogramação e o prazo fim foram preservados nos dados da obra.</div>
+        <div style="max-height:380px;overflow:auto;display:flex;flex-direction:column;gap:6px">
+          ${obras.slice(0,70).map(o=>`<div style="display:grid;grid-template-columns:120px 80px 1fr 120px 120px;gap:8px;align-items:center;background:var(--surface2);border-radius:6px;padding:8px 12px;font-size:12px"><b>${o.idSite}</b><span>${o.cliente}</span><span>${o.cidade}/${o.uf}</span><span>${o.status}</span><span>${o.statusPrazo}</span></div>`).join('')}
+          ${obras.length>70?`<div style="text-align:center;color:var(--txt3);padding:8px">... e mais ${obras.length-70} obras</div>`:''}
+        </div>`;
+      if(btn) btn.style.display=obras.length?'inline-flex':'none';
+    }catch(e){console.error(e); if(body) body.innerHTML=`<div style="color:var(--red);padding:20px">❌ Erro ao ler planilha: ${e.message}</div>`;}
+  };
+
+  window.confirmarImport=function(){
+    const data=Array.isArray(window._importData)?window._importData:[];
+    if(!data.length){ if(typeof toast==='function') toast('⚠️ Nenhuma obra para importar.'); return; }
+    try{ OBRAS.splice(0,OBRAS.length,...data.map(normalize)); }catch(e){ console.error(e); }
+    try{
+      const pBy={}; PARCEIROS.splice(0,PARCEIROS.length);
+      OBRAS.forEach(o=>(o.parceiros||[]).forEach(px=>{const k=norm(px.nome); if(!pBy[k]) pBy[k]={id:px.id||('p_'+k),nome:px.nome,tipo:'Empresa',esp:'Telecom',uf:o.uf||'',obras:0,total:0,tags:[]}; pBy[k].obras++; pBy[k].total+=brl(px.valor);}));
+      Object.values(pBy).sort((a,b)=>a.nome.localeCompare(b.nome)).forEach(p=>PARCEIROS.push(p));
+    }catch(e){}
+    window._importData=[]; if(typeof closeM==='function') closeM('mImport');
+    refreshNow();
+    if(typeof toast==='function') toast('✅ Pipeline importada com status, gráficos e cronograma corrigidos.');
+  };
+
+  // Garante que os gráficos finais enxerguem a base real, inclusive em dados salvos no navegador.
+  setTimeout(refreshNow,250);
+  setTimeout(refreshNow,1200);
+})();
+</script>
+
 </body>
 </html>
