@@ -382,9 +382,9 @@
   .kpi-gray { background: var(--text3); }
 
   /* Gantt */
-  .td-gantt { padding: 0; width: 38%; min-width: 260px; }
+  .td-gantt { padding: 0; width: var(--gantt-col-width, 900px); min-width: var(--gantt-col-width, 900px); }
   .gantt-cell { position: relative; width: 100%; overflow: hidden; }
-  .col-gantt { width: 38% !important; background: #0f3880; }
+  .col-gantt { width: var(--gantt-col-width, 900px) !important; min-width: var(--gantt-col-width, 900px) !important; background: #0f3880; }
   /* Make all rows same height for gantt alignment */
   tbody tr { height: 36px; }
   .gantt-legend {
@@ -717,6 +717,15 @@
   .gantt-today-highlight{position:absolute;top:0;width:1px;height:100%;background:rgba(239,68,68,.9);z-index:5;}
   .gantt-today-tick{position:absolute;top:2px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;color:#ef4444;z-index:6;white-space:nowrap;transform:translateX(-50%);}
 
+  /* Cabeçalho do Gantt sem sobreposição de meses */
+  .gantt-header-inner{position:relative;width:100%;height:38px;background:#0f3880;overflow:hidden;}
+  .gantt-month-band{position:absolute;top:0;height:18px;border-left:1px solid rgba(255,255,255,.22);overflow:hidden;padding-left:5px;}
+  .gantt-month-label{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;color:#93c5fd;line-height:16px;text-transform:uppercase;}
+  .gantt-day-tick{position:absolute;bottom:0;height:21px;border-left:1px solid rgba(255,255,255,.13);font-family:'Barlow Condensed',sans-serif;font-size:9px;color:rgba(255,255,255,.82);line-height:18px;}
+  .gantt-day-tick span{display:inline-block;padding-left:3px;white-space:nowrap;}
+  .gantt-today-head{position:absolute;top:0;width:2px;height:100%;background:#ef4444;opacity:.95;z-index:5;}
+  .gantt-today-label{position:absolute;top:2px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:800;color:#ef4444;z-index:6;white-space:nowrap;background:rgba(15,56,128,.88);padding:0 3px;border-radius:2px;}
+
   /* ── DRAG HANDLE ── */
   .drag-handle-cell{width:22px;text-align:center;cursor:grab;color:var(--text3);font-size:14px;padding:2px 4px;}
   .drag-handle-cell:hover{color:var(--accent);}
@@ -761,6 +770,329 @@
   .milestone-marker{position:absolute;top:0;height:100%;border-left:2px dashed #ea580c;z-index:7;}
   .milestone-label{position:absolute;top:19px;transform:translateX(4px);font-size:9px;font-weight:800;font-family:'Barlow Condensed',sans-serif;color:#ea580c;background:rgba(255,255,255,.9);border:1px solid #fed7aa;border-radius:3px;padding:0 3px;white-space:nowrap;z-index:8;}
   @media(max-width:1100px){.executive-dashboard{grid-template-columns:repeat(2,minmax(120px,1fr));}.exec-card .exec-value{font-size:22px;}}
+
+
+  /* ── REFINO EXECUTIVO ───────────────────────────── */
+  .executive-dashboard{grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;margin:10px 16px 8px;}
+  .exec-card{border-radius:12px;padding:11px 14px;min-height:70px;border-left:4px solid var(--border2);box-shadow:0 1px 8px rgba(15,23,42,.06);}
+  .exec-card .exec-label{font-size:9px;color:#64748b;}
+  .exec-card .exec-value{font-size:25px;}
+  .exec-card .exec-sub{font-size:10px;color:#7b8794;}
+  .exec-card.danger{border-color:#fecaca;border-left-color:var(--red);}
+  .exec-card.warn{border-color:#fde68a;border-left-color:var(--yellow);}
+  .exec-card.ok{border-color:#bbf7d0;border-left-color:var(--green);}
+  .exec-card.neutral{border-left-color:var(--accent2);}
+  .exec-card.risk-low{border-left-color:var(--green);background:#f7fdf9;}
+  .exec-card.risk-mid{border-left-color:var(--yellow);background:#fffdf4;}
+  .exec-card.risk-high{border-left-color:var(--red);background:#fff8f8;}
+  .gantt-toolbar{justify-content:flex-end;padding:6px 10px;background:#f8fafc;}
+  .gantt-toolbar-title,.gantt-toolbar-sub{display:none!important;}
+  .gantt-zoom-controls::before{content:'Zoom';font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-right:4px;}
+  .gantt-zoom-btn{padding:5px 9px;border-radius:6px;font-size:10px;}
+  .exec-mode-btn{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:7px;padding:5px 10px;font-family:'Barlow',sans-serif;font-size:10px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.35px;}
+  .exec-mode-btn.active{background:var(--accent);color:#fff;}
+  body.executive-mode .topbar{height:48px;padding:0 16px;}
+  body.executive-mode .topbar-btn:not(.primary){display:none;}
+  body.executive-mode .infobar{min-height:46px;}
+  body.executive-mode .info-field{padding:7px 14px;}
+  body.executive-mode .td-id, body.executive-mode .td-pred, body.executive-mode .td-actions, body.executive-mode .drag-handle-cell{display:none;}
+  body.executive-mode table{table-layout:auto;}
+  body.executive-mode .task-name{max-width:360px;}
+  body.executive-mode tbody tr{height:40px;}
+  body.executive-mode .schedule-wrap{margin-top:8px;}
+  body.executive-mode .executive-dashboard{margin-top:8px;}
+  body.executive-mode .gantt-sync-scroll{height:8px;}
+  @media(max-width:1300px){.executive-dashboard{grid-template-columns:repeat(3,minmax(130px,1fr));}}
+  @media(max-width:800px){.executive-dashboard{grid-template-columns:repeat(2,minmax(120px,1fr));}}
+
+
+  /* ── AJUSTES FINAIS: GANTT LIMPO + IMPRESSÃO ── */
+  #execModeBtn,.exec-mode-btn{display:none!important;}
+  body.executive-mode .topbar,
+  body.executive-mode .infobar,
+  body.executive-mode .schedule-wrap,
+  body.executive-mode .executive-dashboard{all:revert-layer;}
+
+  #scheduleTable{min-width:1280px;}
+  .td-gantt,.col-gantt{width:var(--gantt-col-width,520px)!important;min-width:var(--gantt-col-width,520px)!important;}
+  .schedule-table-wrap{overflow-x:auto;}
+  .td-name{min-width:220px;}
+  .task-name{max-width:260px;}
+  #ganttHeader{overflow:hidden;}
+  .gantt-toolbar{padding:5px 10px;background:#f8fafc;border-bottom:1px solid var(--border);}
+  .gantt-sync-scroll{display:none!important;height:0;background:#f8fafc;}
+  .gantt-sync-scroll::-webkit-scrollbar{height:8px;}
+  .gantt-sync-scroll::-webkit-scrollbar-thumb{background:#9aa6b2;border-radius:10px;}
+  .gantt-legend{padding:4px 8px;font-size:9px;}
+  .week-band{background:rgba(37,99,235,.045);border-left:1px solid rgba(37,99,235,.16);border-right:1px solid rgba(37,99,235,.16);}
+  .milestone-marker{border-left:1px dashed #ea580c;opacity:.75;}
+  .milestone-label{top:20px;font-size:8px;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
+
+  @media print {
+    .total-days-field,.gantt-toolbar,.gantt-sync-scroll,.executive-dashboard{display:none!important;}
+    .total-days-field{display:none!important;}
+    .infobar{flex-wrap:wrap!important;gap:0!important;padding:4px 6px!important;}
+    .info-field{min-width:auto!important;max-width:120px!important;padding:4px 7px!important;}
+    .info-field.kpi{max-width:95px!important;}
+    .info-value{font-size:9px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;max-width:105px!important;}
+    .global-status{font-size:10px!important;padding:2px 6px!important;white-space:nowrap!important;}
+    .kpi-badge{font-size:10px!important;padding:2px 6px!important;}
+    .date-edit{border:none!important;background:transparent!important;box-shadow:none!important;color:#1a2332!important;font-size:7px!important;width:62px!important;min-width:62px!important;padding:0!important;}
+    #scheduleTable{min-width:0!important;width:100%!important;}
+    .td-date{width:58px!important;max-width:58px!important;overflow:hidden!important;}
+    .td-pct{width:54px!important;}
+    .td-resp{width:45px!important;}
+    .print-only-header{padding-bottom:4px!important;margin-bottom:4px!important;}
+    #tableColgroup col:nth-child(1),
+    #tableColgroup col:nth-child(2),
+    #tableColgroup col:nth-child(13),
+    #tableColgroup col:nth-child(14){display:none!important;width:0!important;min-width:0!important;max-width:0!important;}
+    #scheduleTable{table-layout:auto!important;width:100%!important;}
+    .schedule-wrap{width:100%!important;max-width:100%!important;}
+    .schedule-table-wrap{overflow:visible!important;}
+    .td-gantt,.col-gantt{display:none!important;width:0!important;min-width:0!important;max-width:0!important;padding:0!important;border:0!important;}
+    .td-actions,.drag-handle-cell,.td-id{display:none!important;width:0!important;}
+  }
+
+
+
+  /* ── IMPRESSÃO COM GANTT LIMPO ─────────────────────
+     Objetivo: imprimir o cronograma com a linha do tempo visível,
+     sem sobrepor datas/textos e sem deixar espaço morto. */
+  @media print {
+    @page { size: A3 landscape; margin: 6mm; }
+
+    html, body {
+      width: auto !important;
+      margin: 0 !important;
+      background: #fff !important;
+      font-size: 7px !important;
+    }
+
+    .topbar,
+    .gantt-toolbar,
+    .gantt-sync-scroll,
+    .executive-dashboard,
+    .gantt-legend,
+    .infobar-actions,
+    .add-row,
+    .ctx-menu,
+    .modal-bg,
+    .topbar-btn,
+    .action-btn,
+    .add-section-btn,
+    .no-print,
+    #toast-container,
+    #confirmModal,
+    #tooltip,
+    .total-days-field {
+      display: none !important;
+    }
+
+    .print-only-header {
+      display: block !important;
+      padding: 3px 4px 5px !important;
+      margin-bottom: 4px !important;
+      border-bottom: 2px solid #1a4fa0 !important;
+    }
+
+    .main,
+    .schedule-wrap,
+    .schedule-table-wrap {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    .infobar {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      gap: 0 !important;
+      min-height: auto !important;
+      padding: 3px 4px !important;
+      margin-bottom: 4px !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+
+    .info-field {
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 3px 6px !important;
+      border-right: 1px solid #d7dde6 !important;
+    }
+
+    .info-label { font-size: 6px !important; letter-spacing: .25px !important; }
+    .info-value { font-size: 8px !important; max-width: 86px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+    .kpi-badge, .global-status { font-size: 8px !important; padding: 1px 5px !important; white-space: nowrap !important; }
+
+    #scheduleTable {
+      width: 100% !important;
+      min-width: 0 !important;
+      table-layout: fixed !important;
+      border-collapse: collapse !important;
+    }
+
+    #tableColgroup col { display: table-column !important; min-width: 0 !important; max-width: none !important; }
+    #tableColgroup col:nth-child(1),
+    #tableColgroup col:nth-child(2),
+    #tableColgroup col:nth-child(8),
+    #tableColgroup col:nth-child(9),
+    #tableColgroup col:nth-child(11),
+    #tableColgroup col:nth-child(12),
+    #tableColgroup col:nth-child(13) { width: 0 !important; display: none !important; }
+    #tableColgroup col:nth-child(3) { width: 5% !important; }
+    #tableColgroup col:nth-child(4) { width: 22% !important; }
+    #tableColgroup col:nth-child(5) { width: 4% !important; }
+    #tableColgroup col:nth-child(6) { width: 7% !important; }
+    #tableColgroup col:nth-child(7) { width: 7% !important; }
+    #tableColgroup col:nth-child(10) { width: 6% !important; }
+    #tableColgroup col:nth-child(14) { width: 49% !important; display: table-column !important; }
+
+    thead { display: table-header-group !important; }
+    tr { page-break-inside: avoid !important; }
+    tbody tr { height: 19px !important; }
+
+    thead tr { background: #1a4fa0 !important; }
+    thead th {
+      color: #fff !important;
+      font-size: 6.5px !important;
+      line-height: 1.1 !important;
+      padding: 3px 3px !important;
+      border-right: 1px solid rgba(255,255,255,.18) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    td {
+      font-size: 6.5px !important;
+      line-height: 1.15 !important;
+      padding: 2px 3px !important;
+      border-right: 1px solid #dce3ec !important;
+      border-bottom: 1px solid #dce3ec !important;
+      overflow: hidden !important;
+    }
+
+    th:nth-child(1), th:nth-child(2), th:nth-child(8), th:nth-child(9), th:nth-child(11), th:nth-child(12), th:nth-child(13),
+    td:nth-child(1), td:nth-child(2), td:nth-child(8), td:nth-child(9), td:nth-child(11), td:nth-child(12), td:nth-child(13),
+    .drag-handle-cell, .td-id, .td-pred, .td-actions, .phase-arrow {
+      display: none !important;
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    th:nth-child(14),
+    .td-gantt,
+    .col-gantt {
+      display: table-cell !important;
+      width: 49% !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 0 !important;
+      border-right: 0 !important;
+    }
+
+    .td-item { width: auto !important; font-size: 6.5px !important; color: #1a4fa0 !important; }
+    .td-name { width: auto !important; min-width: 0 !important; }
+    .td-dur { width: auto !important; text-align: center !important; }
+    .td-date { width: auto !important; max-width: none !important; }
+    .td-pct { width: auto !important; }
+
+    .task-name {
+      max-width: 100% !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      display: block !important;
+    }
+
+    .section-label { font-size: 7px !important; }
+    .subsection-label, .task-label { font-size: 6.5px !important; }
+
+    .date-edit {
+      font-size: 6.2px !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      color: #1a2332 !important;
+    }
+
+    .pct-value { font-size: 6.5px !important; }
+    .pct-bar-wrap { height: 3px !important; }
+    .kpi-dot { width: 7px !important; height: 7px !important; }
+
+    .gantt-cell {
+      height: 19px !important;
+      min-height: 19px !important;
+      overflow: hidden !important;
+      background-size: auto !important;
+    }
+
+    .gantt-header-inner {
+      height: 25px !important;
+      min-height: 25px !important;
+      overflow: hidden !important;
+      background: #0f3880 !important;
+    }
+
+    .gantt-month-band {
+      height: 12px !important;
+      padding-left: 3px !important;
+      overflow: hidden !important;
+      border-left: 1px solid rgba(255,255,255,.25) !important;
+    }
+
+    .gantt-month-label {
+      font-size: 6.8px !important;
+      line-height: 11px !important;
+      letter-spacing: .15px !important;
+      max-width: calc(100% - 3px) !important;
+    }
+
+    .gantt-day-tick {
+      height: 13px !important;
+      bottom: 0 !important;
+      font-size: 5.8px !important;
+      line-height: 11px !important;
+      border-left: 1px solid rgba(255,255,255,.12) !important;
+      overflow: hidden !important;
+    }
+
+    .gantt-day-tick span { padding-left: 1px !important; }
+    .gantt-today-head { width: 1px !important; }
+    .gantt-today-label {
+      font-size: 5.8px !important;
+      top: 1px !important;
+      max-width: 28px !important;
+      overflow: hidden !important;
+    }
+
+    .week-band { background: rgba(37,99,235,.045) !important; }
+    .milestone-marker { border-left-width: 1px !important; }
+    .milestone-label {
+      font-size: 5.5px !important;
+      top: 13px !important;
+      max-width: 42px !important;
+      padding: 0 1px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    .gantt-bar { height: 8px !important; top: 5px !important; border-radius: 4px !important; }
+    .gantt-bar.phase { height: 9px !important; top: 5px !important; }
+    .gantt-bar-label { font-size: 5px !important; line-height: 8px !important; }
+    .gantt-today-highlight { width: 1px !important; }
+  }
 
 </style>
 </head>
@@ -1118,7 +1450,7 @@
       <div class="info-label">Status Geral</div>
       <div class="global-status gray" id="global-status">— Sem dados</div>
     </div>
-    <div class="info-field kpi" style="min-width:118px;">
+    <div class="info-field kpi total-days-field" style="min-width:118px;">
       <div class="info-label">Total Dias</div>
       <div class="total-days-badge" id="total-days">0 d</div>
     </div>
@@ -1132,21 +1464,18 @@
 
   <!-- EXECUTIVE DASHBOARD -->
   <div class="executive-dashboard no-print" id="executiveDashboard">
-    <div class="exec-card danger"><div class="exec-label">Tarefas atrasadas</div><div class="exec-value" id="card-late">0</div><div class="exec-sub" id="card-late-sub">Sem tarefas atrasadas</div></div>
-    <div class="exec-card warn"><div class="exec-label">Tarefas críticas</div><div class="exec-value" id="card-critical">0</div><div class="exec-sub" id="card-critical-sub">Marcadas como críticas</div></div>
-    <div class="exec-card ok"><div class="exec-label">% médio concluído</div><div class="exec-value" id="card-avg-done">0%</div><div class="exec-sub" id="card-avg-done-sub">Ponderado por duração</div></div>
-    <div class="exec-card"><div class="exec-label">Dias restantes</div><div class="exec-value" id="card-days-left">0</div><div class="exec-sub" id="card-days-left-sub">Até o término previsto</div></div>
-    <div class="exec-card ok"><div class="exec-label">Finalizadas</div><div class="exec-value" id="card-finished-month">0</div><div class="exec-sub" id="card-finished-month-sub">Tarefas com 100%</div></div>
+    <div class="exec-card danger"><div class="exec-label">Tarefas em atraso</div><div class="exec-value" id="card-late">0</div><div class="exec-sub" id="card-late-sub">Sem atraso aberto</div></div>
+    <div class="exec-card warn"><div class="exec-label">Atividades críticas</div><div class="exec-value" id="card-critical">0</div><div class="exec-sub" id="card-critical-sub">Nenhuma crítica aberta</div></div>
+    <div class="exec-card ok"><div class="exec-label">Avanço físico</div><div class="exec-value" id="card-avg-done">0%</div><div class="exec-sub" id="card-avg-done-sub">Ponderado por duração</div></div>
+    <div class="exec-card neutral"><div class="exec-label">Dias restantes</div><div class="exec-value" id="card-days-left">0</div><div class="exec-sub" id="card-days-left-sub">Até o término previsto</div></div>
+    <div class="exec-card" id="card-risk-box"><div class="exec-label">Risco do prazo</div><div class="exec-value" id="card-risk">—</div><div class="exec-sub" id="card-risk-sub">Sem base de comparação</div></div>
+    <div class="exec-card ok"><div class="exec-label">Entregas no mês</div><div class="exec-value" id="card-finished-month">0</div><div class="exec-sub" id="card-finished-month-sub">Tarefas concluídas</div></div>
   </div>
 
 
   <!-- SCHEDULE -->
   <div class="schedule-wrap">
     <div class="gantt-toolbar no-print">
-      <div>
-        <div class="gantt-toolbar-title">Linha do tempo inteligente</div>
-        <div class="gantt-toolbar-sub">Zoom do Gantt, semana atual e marcos principais</div>
-      </div>
       <div class="gantt-zoom-controls">
         <button class="gantt-zoom-btn" id="zoom-7" onclick="setGanttZoom(7)">7 dias</button>
         <button class="gantt-zoom-btn" id="zoom-30" onclick="setGanttZoom(30)">30 dias</button>
@@ -2081,14 +2410,19 @@ function renderExecutiveDashboard() {
   const today = new Date(); today.setHours(0,0,0,0);
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
+
   const lateTasks = tasks.filter(t => getKPI(t) === 'red' && Number(t.done||0) < 100);
   const criticalTasks = tasks.filter(t => String(t.critical) === '1' && Number(t.done||0) < 100);
   const totalW = tasks.reduce((s,t)=>s+(Number(t.dur)||1),0) || 1;
   const avgDone = tasks.length ? Math.round(tasks.reduce((s,t)=>s+(Number(t.done||0))*(Number(t.dur)||1),0)/totalW) : 0;
+  const avgPlan = tasks.length ? Math.round(tasks.reduce((s,t)=>s+(Number(t.planned||0))*(Number(t.dur)||1),0)/totalW) : 0;
+  const gap = avgDone - avgPlan;
+
   const ends = tasks.map(t=>t.end).filter(Boolean).map(d=>parseISODateLocal(d)||new Date(d));
   let daysLeft = 0;
+  let maxEnd = null;
   if (ends.length) {
-    const maxEnd = new Date(Math.max(...ends));
+    maxEnd = new Date(Math.max(...ends));
     daysLeft = maxEnd < today ? 0 : countDiasUteisEntre(fmtDate(today), fmtDate(maxEnd));
   }
   const finishedMonth = tasks.filter(t => {
@@ -2097,15 +2431,37 @@ function renderExecutiveDashboard() {
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).length;
 
+  let risk = 'Baixo', riskClass = 'risk-low', riskSub = 'Cronograma sob controle';
+  if (!tasks.length) { risk = '—'; riskClass = 'neutral'; riskSub = 'Sem tarefas cadastradas'; }
+  else if (lateTasks.length >= 3 || gap < -15) { risk = 'Alto'; riskClass = 'risk-high'; riskSub = `${Math.abs(gap)} p.p. abaixo do planejado`; }
+  else if (lateTasks.length || criticalTasks.length || gap < -5) { risk = 'Médio'; riskClass = 'risk-mid'; riskSub = gap < 0 ? `${Math.abs(gap)} p.p. abaixo do planejado` : 'Monitorar atividades críticas'; }
+
   const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
   setText('card-late', lateTasks.length);
-  setText('card-late-sub', lateTasks.length ? 'Exige replanejamento' : 'Sem tarefas atrasadas');
+  setText('card-late-sub', lateTasks.length ? 'Exige replanejamento' : 'Sem atraso aberto');
   setText('card-critical', criticalTasks.length);
   setText('card-critical-sub', criticalTasks.length ? 'Priorizar no acompanhamento' : 'Nenhuma crítica aberta');
   setText('card-avg-done', avgDone + '%');
+  setText('card-avg-done-sub', `Planejado: ${avgPlan}%`);
   setText('card-days-left', daysLeft);
-  setText('card-days-left-sub', ends.length ? 'Dias úteis até o fim' : 'Sem término informado');
+  setText('card-days-left-sub', maxEnd ? `Entrega: ${fmtDateBR(fmtDate(maxEnd))}` : 'Sem término informado');
+  setText('card-risk', risk);
+  setText('card-risk-sub', riskSub);
   setText('card-finished-month', finishedMonth);
+
+  const riskBox = document.getElementById('card-risk-box');
+  if (riskBox) riskBox.className = 'exec-card ' + riskClass;
+}
+
+function applyExecutiveMode() {
+  // Modo executivo removido por opção de layout. Mantém compatibilidade com projetos antigos.
+  document.body.classList.remove('executive-mode');
+  const btn = document.getElementById('execModeBtn');
+  if (btn) btn.remove();
+}
+
+function toggleExecutiveMode() {
+  applyExecutiveMode();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2146,59 +2502,80 @@ function dateToX(d, min, span, width) {
 }
 
 function buildGanttHeader(bounds) {
-  const { min, span } = bounds;
+  const { min, max, span } = bounds;
   const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const dayMs = 1000 * 60 * 60 * 24;
 
-  // Build month labels and day ticks as absolute-positioned divs
   let months = '';
   let ticks = '';
-  let lastMonth = -1;
   let weekBand = '';
   let milestoneHtml = '';
 
-  const weekStart = new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+7);
-  const w1 = ((weekStart - min) / (1000*60*60*24) / span * 100);
-  const w2 = ((weekEnd - min) / (1000*60*60*24) / span * 100);
+  // Semana atual destacada sem interferir nos textos do cabeçalho
+  const weekStart = new Date();
+  weekStart.setHours(0,0,0,0);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate()+7);
+  const w1 = ((weekStart - min) / dayMs / span * 100);
+  const w2 = ((weekEnd - min) / dayMs / span * 100);
   if (w2 >= 0 && w1 <= 100) {
     weekBand = `<div class="week-band" style="left:${Math.max(0,w1).toFixed(3)}%;width:${Math.min(100,Math.max(0,w2))-Math.max(0,w1)}%;"></div>`;
   }
 
+  // Meses em faixas com largura própria. Isso impede que "FEV 2026" invada "MAR 2026".
+  const firstMonth = new Date(min.getFullYear(), min.getMonth(), 1);
+  for (let cursor = new Date(firstMonth); cursor <= max; cursor.setMonth(cursor.getMonth() + 1)) {
+    const monthStart = new Date(cursor);
+    const nextMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    const segStart = monthStart < min ? min : monthStart;
+    const segEnd = nextMonth > max ? max : nextMonth;
+    const left = ((segStart - min) / dayMs / span * 100);
+    const width = Math.max(0, ((segEnd - segStart) / dayMs / span * 100));
+    if (width <= 0) continue;
+
+    const label = `${monthNames[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    const compactLabel = width < 8 ? monthNames[cursor.getMonth()] : label;
+    months += `<div class="gantt-month-band" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;">
+      <span class="gantt-month-label">${compactLabel}</span>
+    </div>`;
+  }
+
+  // Ticks de dias: quanto maior a janela, menos labels para não virar ruído visual.
+  const tickEvery = span > 180 ? 20 : span > 120 ? 15 : span > 75 ? 10 : span > 45 ? 5 : span > 20 ? 2 : 1;
+  for (let i = 0; i <= Math.ceil(span); i++) {
+    const d = new Date(min); d.setDate(d.getDate() + i);
+    const pct = (i / span * 100).toFixed(3);
+    const showLabel = i % tickEvery === 0;
+    ticks += `<div class="gantt-day-tick" style="left:${pct}%;">
+      ${showLabel ? `<span>${d.getDate()}</span>` : ''}
+    </div>`;
+  }
+
+  // Marcos principais
   const p = getCurrentProject();
   const markerTasks = (p?.tasks || []).filter(t => t.start && /mobiliza|entrega|top|finaliz|enviar materiais/i.test(t.name || '')).slice(0,8);
   markerTasks.forEach(t => {
     const d = parseISODateLocal(t.start) || new Date(t.start);
-    const pctM = ((d - min) / (1000*60*60*24) / span * 100);
+    const pctM = ((d - min) / dayMs / span * 100);
     if (pctM >= 0 && pctM <= 100) {
       let label = /top/i.test(t.name) ? 'TOP' : /mobiliza/i.test(t.name) ? 'Mobilização' : /finaliz/i.test(t.name) ? 'Final' : 'Entrega';
       milestoneHtml += `<div class="milestone-marker" style="left:${pctM.toFixed(3)}%;"></div><div class="milestone-label" style="left:${pctM.toFixed(3)}%;">${label}</div>`;
     }
   });
 
-  for (let i = 0; i <= Math.ceil(span); i++) {
-    const d = new Date(min); d.setDate(d.getDate() + i);
-    const pct = (i / span * 100).toFixed(3);
-
-    if (d.getMonth() !== lastMonth) {
-      lastMonth = d.getMonth();
-      months += `<div style="position:absolute;left:${pct}%;top:0;height:100%;border-left:1px solid rgba(255,255,255,.2);padding-left:4px;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:#93c5fd;line-height:16px;">${monthNames[d.getMonth()]} ${d.getFullYear()}</div>`;
-    }
-    if (i % 5 === 0) {
-      ticks += `<div style="position:absolute;left:${pct}%;bottom:0;height:50%;border-left:1px solid rgba(255,255,255,.15);padding-left:2px;white-space:nowrap;font-family:'Barlow Condensed',sans-serif;font-size:9px;color:rgba(255,255,255,.8);line-height:18px;">${d.getDate()}</div>`;
-    }
-  }
-
-  // Today marker in header
+  // Hoje
   const todayD = new Date(); todayD.setHours(0,0,0,0);
-  const todayPctH = ((todayD - min) / (1000*60*60*24) / span * 100).toFixed(3);
+  const todayPctH = ((todayD - min) / dayMs / span * 100).toFixed(3);
   const tp2 = parseFloat(todayPctH);
   let todayMark = '';
   if(tp2 >= 0 && tp2 <= 100){
     const todayLabel = todayD.getDate() + '/' + String(todayD.getMonth()+1).padStart(2,'0');
-    todayMark = `<div style="position:absolute;left:${todayPctH}%;top:0;width:2px;height:100%;background:#ef4444;opacity:.9;z-index:5;"></div>
-    <div style="position:absolute;left:calc(${todayPctH}% + 3px);top:2px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;color:#ef4444;z-index:6;white-space:nowrap;background:rgba(15,56,128,.8);padding:0 3px;border-radius:2px;">${todayLabel}</div>`;
+    todayMark = `<div class="gantt-today-head" style="left:${todayPctH}%;"></div>
+    <div class="gantt-today-label" style="left:calc(${todayPctH}% + 4px);">${todayLabel}</div>`;
   }
-  return `<div style="position:relative;width:100%;height:38px;background:#0f3880;overflow:hidden;">${weekBand}${months}${ticks}${milestoneHtml}${todayMark}</div>`;
+
+  return `<div class="gantt-header-inner">${weekBand}${months}${ticks}${milestoneHtml}${todayMark}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2208,6 +2585,9 @@ function renderAll() {
   renderInfoBar();
   renderExecutiveDashboard();
   renderTable();
+  document.body.classList.remove('executive-mode');
+  const execBtn = document.getElementById('execModeBtn');
+  if (execBtn) execBtn.remove();
   setTimeout(applyCollapse, 0);
 }
 
@@ -2315,6 +2695,29 @@ function setGanttZoom(value) {
   renderAll();
 }
 
+
+function computeGanttColumnWidth(bounds) {
+  const p = getCurrentProject();
+  const zoom = String(p?.ganttZoom || 'all');
+  const span = Math.ceil(bounds?.span || 30);
+
+  // Não espremer o modo "Tudo": ele deve abrir uma linha do tempo larga
+  // e usar scroll horizontal, em vez de compactar meses em poucos pixels.
+  if (zoom === '7') return 520;
+  if (zoom === '30') return 560;
+  if (zoom === '90') return 620;
+
+  // Tudo: mantém o Gantt dentro do layout da tabela, sem empurrar as colunas para fora.
+  return 680;
+}
+
+function applyGanttColumnWidth(bounds) {
+  const width = computeGanttColumnWidth(bounds);
+  document.documentElement.style.setProperty('--gantt-col-width', width + 'px');
+  const cg = document.querySelector('#tableColgroup col:last-child');
+  if (cg) cg.style.width = width + 'px';
+}
+
 function updateGanttZoomButtons() {
   const p = getCurrentProject();
   const zoom = String(p?.ganttZoom || 'all');
@@ -2329,9 +2732,9 @@ function syncGanttScroll() {
   const inner = document.getElementById('ganttTopScrollInner');
   const wrap = document.querySelector('.schedule-table-wrap');
   if (!top || !inner || !wrap) return;
-  inner.style.width = wrap.scrollWidth + 'px';
-  top.onscroll = () => { wrap.scrollLeft = top.scrollLeft; };
-  wrap.onscroll = () => { top.scrollLeft = wrap.scrollLeft; };
+  inner.style.width = (document.querySelector('.td-gantt')?.offsetWidth || 680) + 'px';
+  top.onscroll = null;
+  wrap.onscroll = null;
 }
 
 function renderTable() {
@@ -2345,6 +2748,7 @@ function renderTable() {
   autoNumberAndRollup(p.tasks);
 
   ganttBounds = getGanttBounds(p.tasks);
+  applyGanttColumnWidth(ganttBounds);
 
   // Update gantt header
   document.getElementById('ganttHeader').innerHTML = buildGanttHeader(ganttBounds);
@@ -2503,8 +2907,9 @@ function buildGanttBar(task, bounds) {
   const w2 = ((weekEnd - min) / (1000*60*60*24) / span * 100);
   if (w2 >= 0 && w1 <= 100) html += `<div class="week-band" style="left:${Math.max(0,w1).toFixed(3)}%;width:${Math.min(100,Math.max(0,w2))-Math.max(0,w1)}%;"></div>`;
 
-  // Grid lines every 5 days
-  for (let i = 0; i <= Math.ceil(span); i += 5) {
+  // Grid lines proporcionais ao zoom para evitar poluição visual no modo Tudo
+  const gridEvery = span > 180 ? 15 : span > 90 ? 10 : span > 45 ? 5 : span > 20 ? 2 : 1;
+  for (let i = 0; i <= Math.ceil(span); i += gridEvery) {
     const gp = (i / span * 100).toFixed(2);
     html += `<div style="position:absolute;left:${gp}%;top:0;width:1px;height:100%;background:#edf1f7;"></div>`;
   }
@@ -2999,7 +3404,247 @@ function previewRevision(revId) {
       .green { background:#dcfce7; color:#16a34a; }
       .red { background:#fee2e2; color:#dc2626; }
       .gray { background:#f1f5f9; color:#64748b; }
-    </style></head><body>
+    
+
+  /* ── IMPRESSÃO COM GANTT LIMPO ─────────────────────
+     Objetivo: imprimir o cronograma com a linha do tempo visível,
+     sem sobrepor datas/textos e sem deixar espaço morto. */
+  @media print {
+    @page { size: A3 landscape; margin: 6mm; }
+
+    html, body {
+      width: auto !important;
+      margin: 0 !important;
+      background: #fff !important;
+      font-size: 7px !important;
+    }
+
+    .topbar,
+    .gantt-toolbar,
+    .gantt-sync-scroll,
+    .executive-dashboard,
+    .gantt-legend,
+    .infobar-actions,
+    .add-row,
+    .ctx-menu,
+    .modal-bg,
+    .topbar-btn,
+    .action-btn,
+    .add-section-btn,
+    .no-print,
+    #toast-container,
+    #confirmModal,
+    #tooltip,
+    .total-days-field {
+      display: none !important;
+    }
+
+    .print-only-header {
+      display: block !important;
+      padding: 3px 4px 5px !important;
+      margin-bottom: 4px !important;
+      border-bottom: 2px solid #1a4fa0 !important;
+    }
+
+    .main,
+    .schedule-wrap,
+    .schedule-table-wrap {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    .infobar {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      gap: 0 !important;
+      min-height: auto !important;
+      padding: 3px 4px !important;
+      margin-bottom: 4px !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+
+    .info-field {
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 3px 6px !important;
+      border-right: 1px solid #d7dde6 !important;
+    }
+
+    .info-label { font-size: 6px !important; letter-spacing: .25px !important; }
+    .info-value { font-size: 8px !important; max-width: 86px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+    .kpi-badge, .global-status { font-size: 8px !important; padding: 1px 5px !important; white-space: nowrap !important; }
+
+    #scheduleTable {
+      width: 100% !important;
+      min-width: 0 !important;
+      table-layout: fixed !important;
+      border-collapse: collapse !important;
+    }
+
+    #tableColgroup col { display: table-column !important; min-width: 0 !important; max-width: none !important; }
+    #tableColgroup col:nth-child(1),
+    #tableColgroup col:nth-child(2),
+    #tableColgroup col:nth-child(8),
+    #tableColgroup col:nth-child(9),
+    #tableColgroup col:nth-child(11),
+    #tableColgroup col:nth-child(12),
+    #tableColgroup col:nth-child(13) { width: 0 !important; display: none !important; }
+    #tableColgroup col:nth-child(3) { width: 5% !important; }
+    #tableColgroup col:nth-child(4) { width: 22% !important; }
+    #tableColgroup col:nth-child(5) { width: 4% !important; }
+    #tableColgroup col:nth-child(6) { width: 7% !important; }
+    #tableColgroup col:nth-child(7) { width: 7% !important; }
+    #tableColgroup col:nth-child(10) { width: 6% !important; }
+    #tableColgroup col:nth-child(14) { width: 49% !important; display: table-column !important; }
+
+    thead { display: table-header-group !important; }
+    tr { page-break-inside: avoid !important; }
+    tbody tr { height: 19px !important; }
+
+    thead tr { background: #1a4fa0 !important; }
+    thead th {
+      color: #fff !important;
+      font-size: 6.5px !important;
+      line-height: 1.1 !important;
+      padding: 3px 3px !important;
+      border-right: 1px solid rgba(255,255,255,.18) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    td {
+      font-size: 6.5px !important;
+      line-height: 1.15 !important;
+      padding: 2px 3px !important;
+      border-right: 1px solid #dce3ec !important;
+      border-bottom: 1px solid #dce3ec !important;
+      overflow: hidden !important;
+    }
+
+    th:nth-child(1), th:nth-child(2), th:nth-child(8), th:nth-child(9), th:nth-child(11), th:nth-child(12), th:nth-child(13),
+    td:nth-child(1), td:nth-child(2), td:nth-child(8), td:nth-child(9), td:nth-child(11), td:nth-child(12), td:nth-child(13),
+    .drag-handle-cell, .td-id, .td-pred, .td-actions, .phase-arrow {
+      display: none !important;
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    th:nth-child(14),
+    .td-gantt,
+    .col-gantt {
+      display: table-cell !important;
+      width: 49% !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 0 !important;
+      border-right: 0 !important;
+    }
+
+    .td-item { width: auto !important; font-size: 6.5px !important; color: #1a4fa0 !important; }
+    .td-name { width: auto !important; min-width: 0 !important; }
+    .td-dur { width: auto !important; text-align: center !important; }
+    .td-date { width: auto !important; max-width: none !important; }
+    .td-pct { width: auto !important; }
+
+    .task-name {
+      max-width: 100% !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      display: block !important;
+    }
+
+    .section-label { font-size: 7px !important; }
+    .subsection-label, .task-label { font-size: 6.5px !important; }
+
+    .date-edit {
+      font-size: 6.2px !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      color: #1a2332 !important;
+    }
+
+    .pct-value { font-size: 6.5px !important; }
+    .pct-bar-wrap { height: 3px !important; }
+    .kpi-dot { width: 7px !important; height: 7px !important; }
+
+    .gantt-cell {
+      height: 19px !important;
+      min-height: 19px !important;
+      overflow: hidden !important;
+      background-size: auto !important;
+    }
+
+    .gantt-header-inner {
+      height: 25px !important;
+      min-height: 25px !important;
+      overflow: hidden !important;
+      background: #0f3880 !important;
+    }
+
+    .gantt-month-band {
+      height: 12px !important;
+      padding-left: 3px !important;
+      overflow: hidden !important;
+      border-left: 1px solid rgba(255,255,255,.25) !important;
+    }
+
+    .gantt-month-label {
+      font-size: 6.8px !important;
+      line-height: 11px !important;
+      letter-spacing: .15px !important;
+      max-width: calc(100% - 3px) !important;
+    }
+
+    .gantt-day-tick {
+      height: 13px !important;
+      bottom: 0 !important;
+      font-size: 5.8px !important;
+      line-height: 11px !important;
+      border-left: 1px solid rgba(255,255,255,.12) !important;
+      overflow: hidden !important;
+    }
+
+    .gantt-day-tick span { padding-left: 1px !important; }
+    .gantt-today-head { width: 1px !important; }
+    .gantt-today-label {
+      font-size: 5.8px !important;
+      top: 1px !important;
+      max-width: 28px !important;
+      overflow: hidden !important;
+    }
+
+    .week-band { background: rgba(37,99,235,.045) !important; }
+    .milestone-marker { border-left-width: 1px !important; }
+    .milestone-label {
+      font-size: 5.5px !important;
+      top: 13px !important;
+      max-width: 42px !important;
+      padding: 0 1px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    .gantt-bar { height: 8px !important; top: 5px !important; border-radius: 4px !important; }
+    .gantt-bar.phase { height: 9px !important; top: 5px !important; }
+    .gantt-bar-label { font-size: 5px !important; line-height: 8px !important; }
+    .gantt-today-highlight { width: 1px !important; }
+  }
+
+</style></head><body>
     <h2>📋 ${escHtml(rev.label)}</h2>
     <div class="meta">Projeto: <b>${escHtml(p.name)}</b> &nbsp;·&nbsp; Salvo em: ${rev.date} &nbsp;·&nbsp; KPI Plan: ${rev.kpiPlanned} &nbsp;·&nbsp; KPI Conc: ${rev.kpiDone}</div>
     <table>
@@ -3034,6 +3679,280 @@ function previewRevision(revId) {
 }
 #back-to-portal:hover{background:#1a2535;border-color:rgba(244,161,0,.6);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 16px rgba(244,161,0,.15);}
 #back-to-portal svg{width:15px;height:15px;flex-shrink:0;}
+
+  /* ── REFINO EXECUTIVO ───────────────────────────── */
+  .executive-dashboard{grid-template-columns:repeat(6,minmax(130px,1fr));gap:12px;margin:10px 16px 8px;}
+  .exec-card{border-radius:12px;padding:11px 14px;min-height:70px;border-left:4px solid var(--border2);box-shadow:0 1px 8px rgba(15,23,42,.06);}
+  .exec-card .exec-label{font-size:9px;color:#64748b;}
+  .exec-card .exec-value{font-size:25px;}
+  .exec-card .exec-sub{font-size:10px;color:#7b8794;}
+  .exec-card.danger{border-color:#fecaca;border-left-color:var(--red);}
+  .exec-card.warn{border-color:#fde68a;border-left-color:var(--yellow);}
+  .exec-card.ok{border-color:#bbf7d0;border-left-color:var(--green);}
+  .exec-card.neutral{border-left-color:var(--accent2);}
+  .exec-card.risk-low{border-left-color:var(--green);background:#f7fdf9;}
+  .exec-card.risk-mid{border-left-color:var(--yellow);background:#fffdf4;}
+  .exec-card.risk-high{border-left-color:var(--red);background:#fff8f8;}
+  .gantt-toolbar{justify-content:flex-end;padding:6px 10px;background:#f8fafc;}
+  .gantt-toolbar-title,.gantt-toolbar-sub{display:none!important;}
+  .gantt-zoom-controls::before{content:'Zoom';font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-right:4px;}
+  .gantt-zoom-btn{padding:5px 9px;border-radius:6px;font-size:10px;}
+  .exec-mode-btn{border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:7px;padding:5px 10px;font-family:'Barlow',sans-serif;font-size:10px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.35px;}
+  .exec-mode-btn.active{background:var(--accent);color:#fff;}
+  body.executive-mode .topbar{height:48px;padding:0 16px;}
+  body.executive-mode .topbar-btn:not(.primary){display:none;}
+  body.executive-mode .infobar{min-height:46px;}
+  body.executive-mode .info-field{padding:7px 14px;}
+  body.executive-mode .td-id, body.executive-mode .td-pred, body.executive-mode .td-actions, body.executive-mode .drag-handle-cell{display:none;}
+  body.executive-mode table{table-layout:auto;}
+  body.executive-mode .task-name{max-width:360px;}
+  body.executive-mode tbody tr{height:40px;}
+  body.executive-mode .schedule-wrap{margin-top:8px;}
+  body.executive-mode .executive-dashboard{margin-top:8px;}
+  body.executive-mode .gantt-sync-scroll{height:8px;}
+  @media(max-width:1300px){.executive-dashboard{grid-template-columns:repeat(3,minmax(130px,1fr));}}
+  @media(max-width:800px){.executive-dashboard{grid-template-columns:repeat(2,minmax(120px,1fr));}}
+
+
+
+  /* ── IMPRESSÃO COM GANTT LIMPO ─────────────────────
+     Objetivo: imprimir o cronograma com a linha do tempo visível,
+     sem sobrepor datas/textos e sem deixar espaço morto. */
+  @media print {
+    @page { size: A3 landscape; margin: 6mm; }
+
+    html, body {
+      width: auto !important;
+      margin: 0 !important;
+      background: #fff !important;
+      font-size: 7px !important;
+    }
+
+    .topbar,
+    .gantt-toolbar,
+    .gantt-sync-scroll,
+    .executive-dashboard,
+    .gantt-legend,
+    .infobar-actions,
+    .add-row,
+    .ctx-menu,
+    .modal-bg,
+    .topbar-btn,
+    .action-btn,
+    .add-section-btn,
+    .no-print,
+    #toast-container,
+    #confirmModal,
+    #tooltip,
+    .total-days-field {
+      display: none !important;
+    }
+
+    .print-only-header {
+      display: block !important;
+      padding: 3px 4px 5px !important;
+      margin-bottom: 4px !important;
+      border-bottom: 2px solid #1a4fa0 !important;
+    }
+
+    .main,
+    .schedule-wrap,
+    .schedule-table-wrap {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: visible !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+    }
+
+    .infobar {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      gap: 0 !important;
+      min-height: auto !important;
+      padding: 3px 4px !important;
+      margin-bottom: 4px !important;
+      border: 1px solid #cbd5e1 !important;
+    }
+
+    .info-field {
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 3px 6px !important;
+      border-right: 1px solid #d7dde6 !important;
+    }
+
+    .info-label { font-size: 6px !important; letter-spacing: .25px !important; }
+    .info-value { font-size: 8px !important; max-width: 86px !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+    .kpi-badge, .global-status { font-size: 8px !important; padding: 1px 5px !important; white-space: nowrap !important; }
+
+    #scheduleTable {
+      width: 100% !important;
+      min-width: 0 !important;
+      table-layout: fixed !important;
+      border-collapse: collapse !important;
+    }
+
+    #tableColgroup col { display: table-column !important; min-width: 0 !important; max-width: none !important; }
+    #tableColgroup col:nth-child(1),
+    #tableColgroup col:nth-child(2),
+    #tableColgroup col:nth-child(8),
+    #tableColgroup col:nth-child(9),
+    #tableColgroup col:nth-child(11),
+    #tableColgroup col:nth-child(12),
+    #tableColgroup col:nth-child(13) { width: 0 !important; display: none !important; }
+    #tableColgroup col:nth-child(3) { width: 5% !important; }
+    #tableColgroup col:nth-child(4) { width: 22% !important; }
+    #tableColgroup col:nth-child(5) { width: 4% !important; }
+    #tableColgroup col:nth-child(6) { width: 7% !important; }
+    #tableColgroup col:nth-child(7) { width: 7% !important; }
+    #tableColgroup col:nth-child(10) { width: 6% !important; }
+    #tableColgroup col:nth-child(14) { width: 49% !important; display: table-column !important; }
+
+    thead { display: table-header-group !important; }
+    tr { page-break-inside: avoid !important; }
+    tbody tr { height: 19px !important; }
+
+    thead tr { background: #1a4fa0 !important; }
+    thead th {
+      color: #fff !important;
+      font-size: 6.5px !important;
+      line-height: 1.1 !important;
+      padding: 3px 3px !important;
+      border-right: 1px solid rgba(255,255,255,.18) !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    td {
+      font-size: 6.5px !important;
+      line-height: 1.15 !important;
+      padding: 2px 3px !important;
+      border-right: 1px solid #dce3ec !important;
+      border-bottom: 1px solid #dce3ec !important;
+      overflow: hidden !important;
+    }
+
+    th:nth-child(1), th:nth-child(2), th:nth-child(8), th:nth-child(9), th:nth-child(11), th:nth-child(12), th:nth-child(13),
+    td:nth-child(1), td:nth-child(2), td:nth-child(8), td:nth-child(9), td:nth-child(11), td:nth-child(12), td:nth-child(13),
+    .drag-handle-cell, .td-id, .td-pred, .td-actions, .phase-arrow {
+      display: none !important;
+      width: 0 !important;
+      min-width: 0 !important;
+      max-width: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+    }
+
+    th:nth-child(14),
+    .td-gantt,
+    .col-gantt {
+      display: table-cell !important;
+      width: 49% !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      padding: 0 !important;
+      border-right: 0 !important;
+    }
+
+    .td-item { width: auto !important; font-size: 6.5px !important; color: #1a4fa0 !important; }
+    .td-name { width: auto !important; min-width: 0 !important; }
+    .td-dur { width: auto !important; text-align: center !important; }
+    .td-date { width: auto !important; max-width: none !important; }
+    .td-pct { width: auto !important; }
+
+    .task-name {
+      max-width: 100% !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      display: block !important;
+    }
+
+    .section-label { font-size: 7px !important; }
+    .subsection-label, .task-label { font-size: 6.5px !important; }
+
+    .date-edit {
+      font-size: 6.2px !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      color: #1a2332 !important;
+    }
+
+    .pct-value { font-size: 6.5px !important; }
+    .pct-bar-wrap { height: 3px !important; }
+    .kpi-dot { width: 7px !important; height: 7px !important; }
+
+    .gantt-cell {
+      height: 19px !important;
+      min-height: 19px !important;
+      overflow: hidden !important;
+      background-size: auto !important;
+    }
+
+    .gantt-header-inner {
+      height: 25px !important;
+      min-height: 25px !important;
+      overflow: hidden !important;
+      background: #0f3880 !important;
+    }
+
+    .gantt-month-band {
+      height: 12px !important;
+      padding-left: 3px !important;
+      overflow: hidden !important;
+      border-left: 1px solid rgba(255,255,255,.25) !important;
+    }
+
+    .gantt-month-label {
+      font-size: 6.8px !important;
+      line-height: 11px !important;
+      letter-spacing: .15px !important;
+      max-width: calc(100% - 3px) !important;
+    }
+
+    .gantt-day-tick {
+      height: 13px !important;
+      bottom: 0 !important;
+      font-size: 5.8px !important;
+      line-height: 11px !important;
+      border-left: 1px solid rgba(255,255,255,.12) !important;
+      overflow: hidden !important;
+    }
+
+    .gantt-day-tick span { padding-left: 1px !important; }
+    .gantt-today-head { width: 1px !important; }
+    .gantt-today-label {
+      font-size: 5.8px !important;
+      top: 1px !important;
+      max-width: 28px !important;
+      overflow: hidden !important;
+    }
+
+    .week-band { background: rgba(37,99,235,.045) !important; }
+    .milestone-marker { border-left-width: 1px !important; }
+    .milestone-label {
+      font-size: 5.5px !important;
+      top: 13px !important;
+      max-width: 42px !important;
+      padding: 0 1px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+    }
+
+    .gantt-bar { height: 8px !important; top: 5px !important; border-radius: 4px !important; }
+    .gantt-bar.phase { height: 9px !important; top: 5px !important; }
+    .gantt-bar-label { font-size: 5px !important; line-height: 8px !important; }
+    .gantt-today-highlight { width: 1px !important; }
+  }
+
 </style>
 <a id="back-to-portal" href="portal-contel.html">
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -3168,6 +4087,7 @@ function executePrint() {
     @media print {
       @page { size: ${pageSize}; margin: 8mm 10mm 8mm 10mm; }
       html, body { width: ${bodyWidth} !important; }
+      #tableColgroup col:nth-child(14){display:none!important;width:0!important;}
     }
   `;
   document.head.appendChild(printStyleEl);
