@@ -698,6 +698,11 @@
   .global-status.yellow{background:var(--yellow-light);color:var(--yellow);}
   .global-status.red{background:var(--red-light);color:var(--red);}
   .global-status.gray{background:var(--border);color:var(--text3);}
+  .total-days-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 12px;border-radius:20px;background:#eef2ff;color:var(--accent);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;margin-top:3px;white-space:nowrap;}
+  .calendar-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  .calendar-option{border:1px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--surface2);display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);}
+  .calendar-option input{accent-color:var(--accent);}
+  .calendar-note{font-size:11px;color:var(--text3);line-height:1.45;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;}
 
   /* ── COLLAPSE PHASES ── */
   /* collapse via row click — no visible button */
@@ -733,6 +738,30 @@
   .tt-bar-wrap{height:5px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden;margin-top:6px;}
   .tt-bar-fill{height:100%;background:#1d4ed8;border-radius:3px;}
 
+
+  /* ── EXECUTIVE DASHBOARD + SMART GANTT ── */
+  .executive-dashboard{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin:12px 16px 0;}
+  .exec-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;box-shadow:0 1px 4px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:4px;min-height:74px;}
+  .exec-card .exec-label{font-size:10px;font-weight:700;letter-spacing:.55px;text-transform:uppercase;color:var(--text3);}
+  .exec-card .exec-value{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;color:var(--text);line-height:1;}
+  .exec-card .exec-sub{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .exec-card.danger{border-color:#fecaca;background:#fff8f8;}.exec-card.danger .exec-value{color:var(--red);}
+  .exec-card.warn{border-color:#fde68a;background:#fffdf4;}.exec-card.warn .exec-value{color:var(--yellow);}
+  .exec-card.ok{border-color:#bbf7d0;background:#f7fdf9;}.exec-card.ok .exec-value{color:var(--green);}
+  .gantt-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#ffffff,#f8fafc);}
+  .gantt-toolbar-title{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;color:var(--accent);letter-spacing:.35px;text-transform:uppercase;}
+  .gantt-toolbar-sub{font-size:11px;color:var(--text3);margin-top:1px;}
+  .gantt-zoom-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+  .gantt-zoom-btn{border:1px solid var(--border2);background:#fff;color:var(--text2);border-radius:7px;padding:6px 10px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
+  .gantt-zoom-btn:hover{border-color:var(--accent2);color:var(--accent2);background:var(--accent-light);}
+  .gantt-zoom-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .gantt-sync-scroll{height:14px;overflow-x:auto;overflow-y:hidden;border-bottom:1px solid var(--border);background:#f8fafc;}
+  .gantt-sync-inner{height:1px;min-width:1200px;}
+  .week-band{position:absolute;top:0;height:100%;background:rgba(37,99,235,.07);border-left:1px solid rgba(37,99,235,.2);border-right:1px solid rgba(37,99,235,.2);z-index:0;}
+  .milestone-marker{position:absolute;top:0;height:100%;border-left:2px dashed #ea580c;z-index:7;}
+  .milestone-label{position:absolute;top:19px;transform:translateX(4px);font-size:9px;font-weight:800;font-family:'Barlow Condensed',sans-serif;color:#ea580c;background:rgba(255,255,255,.9);border:1px solid #fed7aa;border-radius:3px;padding:0 3px;white-space:nowrap;z-index:8;}
+  @media(max-width:1100px){.executive-dashboard{grid-template-columns:repeat(2,minmax(120px,1fr));}.exec-card .exec-value{font-size:22px;}}
+
 </style>
 </head>
 <body>
@@ -749,6 +778,7 @@
   <button class="topbar-btn" onclick="newFromTemplate()" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35)">📋 Template</button>
   <button class="topbar-btn" onclick="openVersionHistoryModal()">🕘 Histórico</button>
   <button class="topbar-btn" onclick="openRevisionsModal()" style="background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35)">🕒 Revisões</button>
+  <button class="topbar-btn" onclick="openCalendarModal()" title="Configurar dias úteis, horas por dia e feriados">📅 Calendário</button>
   <div class="topbar-divider"></div>
   <button class="topbar-btn" onclick="exportProjectJSON()" title="Exportar projeto como arquivo JSON">⬇ JSON</button>
   <button class="topbar-btn" onclick="exportProjectXLSX()" title="Exportar planilha Excel">⬇ Excel</button>
@@ -905,6 +935,38 @@
   </div>
 </div>
 
+<!-- CALENDAR MODAL -->
+<div class="modal-bg" id="calendarModal">
+  <div class="modal" style="width:520px">
+    <div class="modal-header" style="background:linear-gradient(135deg,#1a4fa0,#2563eb)">
+      📅 Configurar Calendário do Projeto
+      <button class="modal-close" onclick="closeCalendarModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:18px">
+      <div class="calendar-grid">
+        <label class="calendar-option"><input type="checkbox" id="cal-saturday"> Sábado é dia útil</label>
+        <label class="calendar-option"><input type="checkbox" id="cal-sunday"> Domingo é dia útil</label>
+        <label class="calendar-option"><input type="checkbox" id="cal-holidays"> Considerar feriados nacionais</label>
+        <div class="calendar-option" style="justify-content:space-between">
+          <span>Horas por dia</span>
+          <input class="form-input" id="cal-hours" type="number" min="1" max="24" step="0.5" style="width:82px;padding:5px 8px">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Feriados adicionais / paradas da obra</label>
+        <textarea class="form-input" id="cal-custom-holidays" rows="5" placeholder="Um por linha. Ex: 2026-06-04" style="resize:vertical;width:100%;font-family:'Barlow',sans-serif"></textarea>
+      </div>
+      <div class="calendar-note">
+        Ao salvar, o cronograma recalcula as datas, durações das fases, KPI planejado e o total de dias/horas. O cálculo de duração conta o dia inicial como dia 1, igual ao comportamento atual do cronograma.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="topbar-btn" onclick="closeCalendarModal()" style="color:var(--text);border-color:var(--border2)">Cancelar</button>
+      <button class="topbar-btn primary" onclick="saveCalendarConfig()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Salvar e Recalcular</button>
+    </div>
+  </div>
+</div>
+
 <!-- PRINT MODAL -->
 <div class="modal-bg" id="printModal">
   <div class="modal" style="width:400px">
@@ -1056,15 +1118,43 @@
       <div class="info-label">Status Geral</div>
       <div class="global-status gray" id="global-status">— Sem dados</div>
     </div>
+    <div class="info-field kpi" style="min-width:118px;">
+      <div class="info-label">Total Dias</div>
+      <div class="total-days-badge" id="total-days">0 d</div>
+    </div>
     <div class="info-spacer"></div>
     <div class="infobar-actions">
+      <button class="topbar-btn" onclick="openCalendarModal()" style="color:var(--text);border-color:var(--border2)">📅 Calendário</button>
       <button class="topbar-btn" onclick="openVersionHistoryModal()" style="color:var(--text);border-color:var(--border2)">🕘 Histórico</button>
       <button class="topbar-btn" onclick="addTask(null,'section')" style="background:var(--accent);color:#fff;border-color:var(--accent)">＋ Nova Fase</button>
     </div>
   </div>
 
+  <!-- EXECUTIVE DASHBOARD -->
+  <div class="executive-dashboard no-print" id="executiveDashboard">
+    <div class="exec-card danger"><div class="exec-label">Tarefas atrasadas</div><div class="exec-value" id="card-late">0</div><div class="exec-sub" id="card-late-sub">Sem tarefas atrasadas</div></div>
+    <div class="exec-card warn"><div class="exec-label">Tarefas críticas</div><div class="exec-value" id="card-critical">0</div><div class="exec-sub" id="card-critical-sub">Marcadas como críticas</div></div>
+    <div class="exec-card ok"><div class="exec-label">% médio concluído</div><div class="exec-value" id="card-avg-done">0%</div><div class="exec-sub" id="card-avg-done-sub">Ponderado por duração</div></div>
+    <div class="exec-card"><div class="exec-label">Dias restantes</div><div class="exec-value" id="card-days-left">0</div><div class="exec-sub" id="card-days-left-sub">Até o término previsto</div></div>
+    <div class="exec-card ok"><div class="exec-label">Finalizadas</div><div class="exec-value" id="card-finished-month">0</div><div class="exec-sub" id="card-finished-month-sub">Tarefas com 100%</div></div>
+  </div>
+
+
   <!-- SCHEDULE -->
   <div class="schedule-wrap">
+    <div class="gantt-toolbar no-print">
+      <div>
+        <div class="gantt-toolbar-title">Linha do tempo inteligente</div>
+        <div class="gantt-toolbar-sub">Zoom do Gantt, semana atual e marcos principais</div>
+      </div>
+      <div class="gantt-zoom-controls">
+        <button class="gantt-zoom-btn" id="zoom-7" onclick="setGanttZoom(7)">7 dias</button>
+        <button class="gantt-zoom-btn" id="zoom-30" onclick="setGanttZoom(30)">30 dias</button>
+        <button class="gantt-zoom-btn" id="zoom-90" onclick="setGanttZoom(90)">90 dias</button>
+        <button class="gantt-zoom-btn" id="zoom-all" onclick="setGanttZoom('all')">Tudo</button>
+      </div>
+    </div>
+    <div class="gantt-sync-scroll no-print" id="ganttTopScroll"><div class="gantt-sync-inner" id="ganttTopScrollInner"></div></div>
     <div class="schedule-table-wrap">
       <table id="scheduleTable">
         <colgroup id="tableColgroup">
@@ -1159,6 +1249,7 @@ function ensureProjectSchema(project) {
   if (typeof project.versionSeq !== 'number') project.versionSeq = project.versionHistory.length || 0;
   if (!Array.isArray(project.pendingDateChanges)) project.pendingDateChanges = [];
   if (!project.pendingHistoryStartedAt) project.pendingHistoryStartedAt = '';
+  project.calendar = normalizeCalendar(project.calendar);
   return project;
 }
 
@@ -1199,14 +1290,32 @@ const LZS = {
   }
 };
 
-let _saveCronoTimer = null;
 function saveState() {
-  clearTimeout(_saveCronoTimer);
-  _saveCronoTimer = setTimeout(async ()=>{
-    try{
-      await fetch('/api/cronograma',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:state})});
-    }catch(e){console.warn('Cronograma save error:',e);}
-  }, 800);
+  try {
+    const json = JSON.stringify(state);
+    // Try compressed first
+    try {
+      const compressed = LZS.compress(json);
+      localStorage.setItem('highline_sched_v2', 'LZ:' + compressed);
+      return;
+    } catch(e) {}
+    // Fallback: raw JSON
+    localStorage.setItem('highline_sched_v2', json);
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') {
+      // Last resort: try to purge versionHistory to save space
+      try {
+        const slim = JSON.parse(JSON.stringify(state));
+        slim.projects.forEach(p => {
+          p.versionHistory = (p.versionHistory || []).slice(-3);
+          p.pendingDateChanges = [];
+        });
+        localStorage.setItem('highline_sched_v2', 'LZ:' + LZS.compress(JSON.stringify(slim)));
+      } catch(e2) {
+        console.warn('Não foi possível salvar — localStorage cheio. Use Exportar JSON para backup.');
+      }
+    }
+  }
 }
 
 function updateDocumentTitle() {
@@ -1216,12 +1325,12 @@ function updateDocumentTitle() {
   document.title = `cronograma ${projectName}`;
 }
 
-async function loadState() {
+function loadState() {
   try {
-    const r = await fetch('/api/cronograma',{cache:'no-store'});
-    const j = await r.json();
-    if(j.ok && j.data && j.data.state){
-      state = j.data.state;
+    let raw = localStorage.getItem('highline_sched_v2');
+    if (raw) {
+      if (raw.startsWith('LZ:')) raw = LZS.decompress(raw.slice(3));
+      state = JSON.parse(raw);
     }
     if (!Array.isArray(state.projects)) state.projects = [];
     state.projects = state.projects.map(ensureProjectSchema);
@@ -1243,13 +1352,91 @@ function defaultProject(name) {
     versionHistory: [],
     versionSeq: 0,
     pendingDateChanges: [],
-    pendingHistoryStartedAt: ''
+    pendingHistoryStartedAt: '',
+    calendar: normalizeCalendar()
   };
 }
 
 // ═══════════════════════════════════════════════════════
 // FERIADOS E CALENDÁRIO
 // ═══════════════════════════════════════════════════════
+
+const DEFAULT_CALENDAR = { workSaturday: true, workSunday: false, hoursPerDay: 8, considerHolidays: true, customHolidays: [] };
+
+function normalizeCalendar(cal) {
+  return {
+    workSaturday: cal?.workSaturday !== undefined ? !!cal.workSaturday : DEFAULT_CALENDAR.workSaturday,
+    workSunday: cal?.workSunday !== undefined ? !!cal.workSunday : DEFAULT_CALENDAR.workSunday,
+    hoursPerDay: Math.max(1, Math.min(24, Number(cal?.hoursPerDay || DEFAULT_CALENDAR.hoursPerDay))),
+    considerHolidays: cal?.considerHolidays !== undefined ? !!cal.considerHolidays : DEFAULT_CALENDAR.considerHolidays,
+    customHolidays: Array.isArray(cal?.customHolidays) ? cal.customHolidays.filter(Boolean) : []
+  };
+}
+
+function getCalendarConfig() {
+  const p = getCurrentProject();
+  return normalizeCalendar(p?.calendar);
+}
+
+function clearHolidayCache() {
+  Object.keys(_feriadosCache || {}).forEach(k => delete _feriadosCache[k]);
+}
+
+function openCalendarModal() {
+  const p = getCurrentProject();
+  if (!p) { toast('Abra um projeto primeiro.','warn'); return; }
+  p.calendar = normalizeCalendar(p.calendar);
+  document.getElementById('cal-saturday').checked = !!p.calendar.workSaturday;
+  document.getElementById('cal-sunday').checked = !!p.calendar.workSunday;
+  document.getElementById('cal-holidays').checked = !!p.calendar.considerHolidays;
+  document.getElementById('cal-hours').value = p.calendar.hoursPerDay;
+  document.getElementById('cal-custom-holidays').value = (p.calendar.customHolidays || []).join('\n');
+  document.getElementById('calendarModal').classList.add('open');
+}
+
+function closeCalendarModal() {
+  document.getElementById('calendarModal').classList.remove('open');
+}
+
+function saveCalendarConfig() {
+  const p = getCurrentProject();
+  if (!p) return;
+  const beforeDates = snapshotTaskDates(p.tasks);
+  const custom = document.getElementById('cal-custom-holidays').value
+    .split(/\n|,|;/)
+    .map(x => x.trim())
+    .filter(Boolean)
+    .filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x));
+  p.calendar = normalizeCalendar({
+    workSaturday: document.getElementById('cal-saturday').checked,
+    workSunday: document.getElementById('cal-sunday').checked,
+    considerHolidays: document.getElementById('cal-holidays').checked,
+    hoursPerDay: Number(document.getElementById('cal-hours').value) || 8,
+    customHolidays: custom
+  });
+  clearHolidayCache();
+  p.tasks.forEach(task => { if (task.level > 2) recalcEnd(task); });
+  cascadeSchedule(null, p.tasks);
+  autoNumberAndRollup(p.tasks);
+  registerDateChanges(p, beforeDates, 'Alteração do calendário do projeto');
+  saveState();
+  renderAll();
+  closeCalendarModal();
+  toast('Calendário atualizado e cronograma recalculado.','success');
+}
+
+function countDiasUteisEntre(startIso, endIso) {
+  if (!startIso || !endIso) return 0;
+  let d = parseISODateLocal(startIso);
+  const endD = parseISODateLocal(endIso);
+  if (!d || !endD || d > endD) return 0;
+  let count = 0;
+  while (d <= endD) {
+    if (isDiaUtil(d)) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
+}
 
 // Feriados nacionais fixos (MM-DD)
 const FERIADOS_FIXOS = [
@@ -1289,6 +1476,10 @@ function feriadosMoveis(ano) {
 
 const _feriadosCache = {};
 function isFeriado(date) {
+  const cal = getCalendarConfig();
+  const iso = fmtDate(date);
+  if ((cal.customHolidays || []).includes(iso)) return true;
+  if (!cal.considerHolidays) return false;
   const ano = date.getFullYear();
   if (!_feriadosCache[ano]) {
     _feriadosCache[ano] = new Set([...FERIADOS_FIXOS, ...feriadosMoveis(ano)]);
@@ -1298,9 +1489,10 @@ function isFeriado(date) {
 }
 
 function isDiaUtil(date) {
+  const cal = getCalendarConfig();
   const dow = date.getDay();
-  if (dow === 0) return false; // domingo
-  // sábado conta como dia útil em obras (pode desativar se quiser)
+  if (dow === 0 && !cal.workSunday) return false;
+  if (dow === 6 && !cal.workSaturday) return false;
   return !isFeriado(date);
 }
 
@@ -1723,7 +1915,8 @@ function applyTemplate() {
     versionHistory: [],
     versionSeq: 0,
     pendingDateChanges: [],
-    pendingHistoryStartedAt: ''
+    pendingHistoryStartedAt: '',
+    calendar: normalizeCalendar()
   };
 
   // 1. Criar todas as tarefas com start/end no startDate
@@ -1831,6 +2024,15 @@ function saveInfoField(key, val) {
   saveState();
   renderAll();
 }
+
+function getExecutableTasks(tasks) {
+  return (tasks || []).filter((task, idx, arr) => {
+    if ((task.level || 3) < 3) return false;
+    const next = arr[idx + 1];
+    return !(next && (next.level || 3) > (task.level || 3));
+  });
+}
+
 function renderInfoBar() {
   const p = getCurrentProject();
   if (!p) return;
@@ -1843,9 +2045,13 @@ function renderInfoBar() {
   document.getElementById('ib-location').innerText = p.info.location || '';
 
   // KPI ponderado por duração
-  const tasks = p.tasks.filter(t => t.level >= 3);
+  const tasks = getExecutableTasks(p.tasks);
   const statusEl = document.getElementById('global-status');
+  const totalDaysEl = document.getElementById('total-days');
+  const cal = getCalendarConfig();
   if (tasks.length) {
+    const totalDays = tasks.reduce((s,t)=>s+(Number(t.dur)||0),0);
+    if (totalDaysEl) totalDaysEl.textContent = `${totalDays} d`;
     const totalW = tasks.reduce((s,t)=>s+(Number(t.dur)||1),0) || 1;
     const avgP = Math.round(tasks.reduce((s,t)=>s+(Number(t.planned||0))*(Number(t.dur)||1),0)/totalW);
     const avgD = Math.round(tasks.reduce((s,t)=>s+(Number(t.done||0))*(Number(t.dur)||1),0)/totalW);
@@ -1861,9 +2067,45 @@ function renderInfoBar() {
       else if(diff >= -10){ statusEl.className='global-status yellow'; statusEl.textContent='🟡 Atenção'; }
       else{ statusEl.className='global-status red'; statusEl.textContent='🔴 Atrasado'; }
     }
-  } else if(statusEl){
-    statusEl.className='global-status gray'; statusEl.textContent='— Sem dados';
+  } else {
+    if (totalDaysEl) totalDaysEl.textContent = '0 d';
+    if(statusEl){ statusEl.className='global-status gray'; statusEl.textContent='— Sem dados'; }
   }
+}
+
+
+function renderExecutiveDashboard() {
+  const p = getCurrentProject();
+  if (!p) return;
+  const tasks = getExecutableTasks(p.tasks);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  const lateTasks = tasks.filter(t => getKPI(t) === 'red' && Number(t.done||0) < 100);
+  const criticalTasks = tasks.filter(t => String(t.critical) === '1' && Number(t.done||0) < 100);
+  const totalW = tasks.reduce((s,t)=>s+(Number(t.dur)||1),0) || 1;
+  const avgDone = tasks.length ? Math.round(tasks.reduce((s,t)=>s+(Number(t.done||0))*(Number(t.dur)||1),0)/totalW) : 0;
+  const ends = tasks.map(t=>t.end).filter(Boolean).map(d=>parseISODateLocal(d)||new Date(d));
+  let daysLeft = 0;
+  if (ends.length) {
+    const maxEnd = new Date(Math.max(...ends));
+    daysLeft = maxEnd < today ? 0 : countDiasUteisEntre(fmtDate(today), fmtDate(maxEnd));
+  }
+  const finishedMonth = tasks.filter(t => {
+    if (Number(t.done||0) < 100 || !t.end) return false;
+    const d = parseISODateLocal(t.end) || new Date(t.end);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+  }).length;
+
+  const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  setText('card-late', lateTasks.length);
+  setText('card-late-sub', lateTasks.length ? 'Exige replanejamento' : 'Sem tarefas atrasadas');
+  setText('card-critical', criticalTasks.length);
+  setText('card-critical-sub', criticalTasks.length ? 'Priorizar no acompanhamento' : 'Nenhuma crítica aberta');
+  setText('card-avg-done', avgDone + '%');
+  setText('card-days-left', daysLeft);
+  setText('card-days-left-sub', ends.length ? 'Dias úteis até o fim' : 'Sem término informado');
+  setText('card-finished-month', finishedMonth);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1877,10 +2119,25 @@ function getGanttBounds(tasks) {
   });
   if (!min) min = new Date();
   if (!max) { max = new Date(min); max.setDate(max.getDate()+30); }
-  // pad
-  min.setDate(min.getDate()-3);
-  max.setDate(max.getDate()+5);
-  return { min, max, span: (max-min)/(1000*60*60*24) };
+
+  const p = getCurrentProject();
+  const zoom = p?.ganttZoom || 'all';
+  if (zoom !== 'all') {
+    const days = Number(zoom) || 30;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const allMin = new Date(min); const allMax = new Date(max);
+    let zMin = new Date(today); zMin.setDate(zMin.getDate() - 2);
+    let zMax = new Date(zMin); zMax.setDate(zMax.getDate() + days);
+    if (allMax < zMin || allMin > zMax) {
+      zMin = new Date(allMin); zMin.setDate(zMin.getDate() - 1);
+      zMax = new Date(zMin); zMax.setDate(zMax.getDate() + days);
+    }
+    min = zMin; max = zMax;
+  } else {
+    min.setDate(min.getDate()-3);
+    max.setDate(max.getDate()+5);
+  }
+  return { min, max, span: Math.max(1, (max-min)/(1000*60*60*24)) };
 }
 
 function dateToX(d, min, span, width) {
@@ -1896,6 +2153,27 @@ function buildGanttHeader(bounds) {
   let months = '';
   let ticks = '';
   let lastMonth = -1;
+  let weekBand = '';
+  let milestoneHtml = '';
+
+  const weekStart = new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+7);
+  const w1 = ((weekStart - min) / (1000*60*60*24) / span * 100);
+  const w2 = ((weekEnd - min) / (1000*60*60*24) / span * 100);
+  if (w2 >= 0 && w1 <= 100) {
+    weekBand = `<div class="week-band" style="left:${Math.max(0,w1).toFixed(3)}%;width:${Math.min(100,Math.max(0,w2))-Math.max(0,w1)}%;"></div>`;
+  }
+
+  const p = getCurrentProject();
+  const markerTasks = (p?.tasks || []).filter(t => t.start && /mobiliza|entrega|top|finaliz|enviar materiais/i.test(t.name || '')).slice(0,8);
+  markerTasks.forEach(t => {
+    const d = parseISODateLocal(t.start) || new Date(t.start);
+    const pctM = ((d - min) / (1000*60*60*24) / span * 100);
+    if (pctM >= 0 && pctM <= 100) {
+      let label = /top/i.test(t.name) ? 'TOP' : /mobiliza/i.test(t.name) ? 'Mobilização' : /finaliz/i.test(t.name) ? 'Final' : 'Entrega';
+      milestoneHtml += `<div class="milestone-marker" style="left:${pctM.toFixed(3)}%;"></div><div class="milestone-label" style="left:${pctM.toFixed(3)}%;">${label}</div>`;
+    }
+  });
 
   for (let i = 0; i <= Math.ceil(span); i++) {
     const d = new Date(min); d.setDate(d.getDate() + i);
@@ -1920,7 +2198,7 @@ function buildGanttHeader(bounds) {
     todayMark = `<div style="position:absolute;left:${todayPctH}%;top:0;width:2px;height:100%;background:#ef4444;opacity:.9;z-index:5;"></div>
     <div style="position:absolute;left:calc(${todayPctH}% + 3px);top:2px;font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;color:#ef4444;z-index:6;white-space:nowrap;background:rgba(15,56,128,.8);padding:0 3px;border-radius:2px;">${todayLabel}</div>`;
   }
-  return `<div style="position:relative;width:100%;height:38px;background:#0f3880;overflow:hidden;">${months}${ticks}${todayMark}</div>`;
+  return `<div style="position:relative;width:100%;height:38px;background:#0f3880;overflow:hidden;">${weekBand}${months}${ticks}${milestoneHtml}${todayMark}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1928,6 +2206,7 @@ function buildGanttHeader(bounds) {
 // ═══════════════════════════════════════════════════════
 function renderAll() {
   renderInfoBar();
+  renderExecutiveDashboard();
   renderTable();
   setTimeout(applyCollapse, 0);
 }
@@ -1946,15 +2225,17 @@ function calcPlannedAuto(task) {
   start.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
 
-  const total   = end - start;
-  const elapsed = today - start;
+  const totalDias = countDiasUteisEntre(task.start, task.end);
+  if (!totalDias) { task.planned = 0; return; }
 
-  if (elapsed <= 0) {
+  if (today < start) {
     task.planned = 0;
-  } else if (elapsed >= total) {
+  } else if (today >= end) {
     task.planned = 100;
   } else {
-    task.planned = Math.round((elapsed / total) * 100);
+    const todayIso = fmtDate(today);
+    const elapsedDias = countDiasUteisEntre(task.start, todayIso);
+    task.planned = Math.max(0, Math.min(100, Math.round((elapsedDias / totalDias) * 100)));
   }
 }
 
@@ -1998,9 +2279,12 @@ function autoNumberAndRollup(tasks) {
       descendants.push(tasks[j]);
     }
 
-    // Filtra apenas as FOLHAS (tarefas que não são fases/subgrupos)
-    // para não contar datas dobradas de subgrupos
-    const leaves = descendants.filter(d => d.level > 2);
+    // Filtra apenas as tarefas executáveis sem filhos para não dobrar duração
+    const leaves = descendants.filter((d, localIdx) => {
+      if ((d.level || 3) < 3) return false;
+      const next = descendants[localIdx + 1];
+      return !(next && (next.level || 3) > (d.level || 3));
+    });
 
     if (!leaves.length) continue;
 
@@ -2012,14 +2296,7 @@ function autoNumberAndRollup(tasks) {
 
     // Duração: conta dias úteis entre min(start) e max(end)
     if (task.start && task.end) {
-      let count = 0;
-      let d = parseISODateLocal(task.start) || new Date(task.start);
-      const endD = parseISODateLocal(task.end) || new Date(task.end);
-      while (d <= endD) {
-        if (isDiaUtil(d)) count++;
-        d.setDate(d.getDate() + 1);
-      }
-      task.dur = count;
+task.dur = countDiasUteisEntre(task.start, task.end);
     }
 
     // % médio das folhas
@@ -2029,6 +2306,33 @@ function autoNumberAndRollup(tasks) {
 }
 
 let ganttBounds = null;
+
+function setGanttZoom(value) {
+  const p = getCurrentProject();
+  if (!p) return;
+  p.ganttZoom = value;
+  saveState();
+  renderAll();
+}
+
+function updateGanttZoomButtons() {
+  const p = getCurrentProject();
+  const zoom = String(p?.ganttZoom || 'all');
+  ['7','30','90','all'].forEach(v => {
+    const el = document.getElementById('zoom-' + v);
+    if (el) el.classList.toggle('active', zoom === v);
+  });
+}
+
+function syncGanttScroll() {
+  const top = document.getElementById('ganttTopScroll');
+  const inner = document.getElementById('ganttTopScrollInner');
+  const wrap = document.querySelector('.schedule-table-wrap');
+  if (!top || !inner || !wrap) return;
+  inner.style.width = wrap.scrollWidth + 'px';
+  top.onscroll = () => { wrap.scrollLeft = top.scrollLeft; };
+  wrap.onscroll = () => { top.scrollLeft = wrap.scrollLeft; };
+}
 
 function renderTable() {
   const p = getCurrentProject();
@@ -2044,6 +2348,7 @@ function renderTable() {
 
   // Update gantt header
   document.getElementById('ganttHeader').innerHTML = buildGanttHeader(ganttBounds);
+  updateGanttZoomButtons();
 
   const tbody = document.getElementById('taskBody');
   tbody.innerHTML = '';
@@ -2169,6 +2474,7 @@ function renderTable() {
     </div>
   </td>`;
   tbody.appendChild(legendTr);
+  setTimeout(syncGanttScroll, 0);
 }
 
 function buildGanttBar(task, bounds) {
@@ -2190,6 +2496,12 @@ function buildGanttBar(task, bounds) {
   const sectColor = '#2a5faa';
 
   let html = `<div style="position:relative;width:100%;height:28px;overflow:hidden;">`;
+
+  const weekStart = new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate()+7);
+  const w1 = ((weekStart - min) / (1000*60*60*24) / span * 100);
+  const w2 = ((weekEnd - min) / (1000*60*60*24) / span * 100);
+  if (w2 >= 0 && w1 <= 100) html += `<div class="week-band" style="left:${Math.max(0,w1).toFixed(3)}%;width:${Math.min(100,Math.max(0,w2))-Math.max(0,w1)}%;"></div>`;
 
   // Grid lines every 5 days
   for (let i = 0; i <= Math.ceil(span); i += 5) {
@@ -3139,35 +3451,34 @@ document.addEventListener('mousemove', e => {
 });
 
 
-(async ()=>{
-  await loadState();
+loadState();
 
-  // Set print date
-  const pd = document.getElementById('print-date');
-  if (pd) pd.textContent = 'Emitido em ' + new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
+// Set print date
+const pd = document.getElementById('print-date');
+if (pd) pd.textContent = 'Emitido em ' + new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
 
-  // Before print: update print header with project info
-  window.addEventListener('beforeprint', () => {
-    const p = getCurrentProject();
-    if (!p) return;
-    const ph = document.getElementById('printHeader');
-    if (ph) {
-      ph.querySelector('#print-date').textContent =
-        `Projeto: ${p.info.project||p.name}  |  Rev: ${p.info.rev||'001'}  |  Emitido em ${new Date().toLocaleDateString('pt-BR')}`;
-    }
-  });
-
-  if (state.currentProjectId && state.projects.find(p=>p.id===state.currentProjectId)) {
-    showApp();
-    renderAll();
-  } else if (state.projects.length) {
-    state.currentProjectId = state.projects[0].id;
-    showApp();
-    renderAll();
-  } else {
-    showWelcome();
+// Before print: update print header with project info
+window.addEventListener('beforeprint', () => {
+  const p = getCurrentProject();
+  if (!p) return;
+  const ph = document.getElementById('printHeader');
+  if (ph) {
+    ph.querySelector('#print-date').textContent =
+      `Projeto: ${p.info.project||p.name}  |  Rev: ${p.info.rev||'001'}  |  Emitido em ${new Date().toLocaleDateString('pt-BR')}`;
   }
-})();
+
+});
+
+if (state.currentProjectId && state.projects.find(p=>p.id===state.currentProjectId)) {
+  showApp();
+  renderAll();
+} else if (state.projects.length) {
+  state.currentProjectId = state.projects[0].id;
+  showApp();
+  renderAll();
+} else {
+  showWelcome();
+}
 
 // Close modals on bg click
 document.getElementById('projectsModal').addEventListener('click', e => {
