@@ -479,6 +479,11 @@ table.it tbody tr.row-alm:nth-child(even){background:#fff8e8;}
 .ish-alm .btn-bulk-chk.alm{background:#fdefd3;color:#7a5b00;border-color:#f0c870}
 .ish-alm .btn-bulk-chk.alm:hover{background:#fbe0a8}
 @media print{.btn-bulk-chk,.bk-ov{display:none!important}}
+
+/* ── REVISION / POST-CONCLUSION IMPORT ── */
+.revision-note{background:#fff8e1;border:1px solid rgba(244,161,0,.45);border-left:4px solid var(--accent);border-radius:9px;padding:10px 14px;margin:10px 0 14px;font-size:12px;color:#6a4a00;line-height:1.35}
+.revision-note strong{color:#1a2332}
+.btn-back.revision{background:rgba(244,161,0,.12);color:var(--accent);border-color:rgba(244,161,0,.35)}
 </style>
 </head>
 <body>
@@ -751,6 +756,7 @@ table.it tbody tr.row-alm:nth-child(even){background:#fff8e8;}
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn-export-json" onclick="exportJSON()">⬇ JSON</button>
       <button class="btn-back" onclick="openHist()">📋 Histórico</button>
+      <button class="btn-back" onclick="openPdfModal(true)" title="Adicionar PDF/anexo sem apagar os itens já concluídos">📎 Adicionar Anexo/PDF</button>
       <button class="btn-cta" onclick="exportPDF()">🖨️ Imprimir / PDF</button>
     </div>
   </div>
@@ -779,8 +785,10 @@ table.it tbody tr.row-alm:nth-child(even){background:#fff8e8;}
 let parsedItems = [], currentFileName = '';
 let loadedFromSavedState = false;
 let isBlankMode = false; // new: creating from scratch without file
+const STORAGE_KEY = 'os_romaneio_v2';
+const DRAFT_KEY = 'os_romaneio_draft_v2';
+const DRAFT_KEYS_FALLBACK = ['os_romaneio_draft_v2','os_romaneio_draft_v1','os_romaneio_draft','os_romaneio_v1_draft','os_romaneio_v1'];
 let autoSaveTimer = null;
-let _histCache = null;
 let histFilter = null; // 'week' | 'month' | null
 
 // ============ NAVIGATION ============
@@ -839,7 +847,7 @@ fi.addEventListener('change',()=>{if(fi.files[0])handleFile(fi.files[0]);});
 
 async function handleFile(file){
   // If there's existing unsaved work, warn
-  const draft = await loadDraft();
+  const draft = loadDraft();
   if(draft && (draft.id||draft.cliente||draft.items?.length)){
     const ok = await showConfirm('Carregar novo arquivo?','Os dados do rascunho atual serão substituídos pelos dados deste arquivo. Deseja continuar?', true);
     if(!ok) return;
@@ -1536,16 +1544,18 @@ function collectCurrentRecord(){
     etapa4:g('f-etapa4'),etapa5:g('f-etapa5'),etapa6:g('f-etapa6'),
     items:[...parsedItems],osState:collectOSState(),
     lastScreen:document.getElementById('os-screen').classList.contains('active')?'os-screen':'form-screen',
-    savedAt:new Date().toISOString(),fileName:currentFileName
+    savedAt:new Date().toISOString(),fileName:currentFileName,revisionLog:piRevisionLog||[]
   };
 }
 
 // ============ AUTO-SAVE ============
 function triggerAutoSave(){
   if(autoSaveTimer)clearTimeout(autoSaveTimer);
-  autoSaveTimer=setTimeout(async ()=>{
+  autoSaveTimer=setTimeout(()=>{
     try{
-      await saveToHistory();
+      const record=collectCurrentRecord();
+      localStorage.setItem(DRAFT_KEY,JSON.stringify(record));
+      saveToHistory();
       const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
       ['autosave-txt','autosave-txt-os'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='Salvo às '+now;});
       ['autosave-ind','autosave-ind-os'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.add('saved');setTimeout(()=>el.classList.remove('saved'),3000);}});
@@ -1553,17 +1563,26 @@ function triggerAutoSave(){
   },1200);
 }
 
-async function saveCurrentEdit(showMessage=false){
+function saveCurrentEdit(showMessage=false){
   try{
-    await saveToHistory();
+    const record=collectCurrentRecord();
+    localStorage.setItem(DRAFT_KEY,JSON.stringify(record));
+    saveToHistory();
     if(showMessage){toast('Romaneio salvo com sucesso!','success');}
   }catch(e){console.error(e);if(showMessage)toast('Erro ao salvar.','error');}
 }
 
-async function loadDraft(){
+function loadDraft(){
   try{
-    const hist=await loadHist();
-    return hist.length>0?hist[0]:null;
+    for(const key of DRAFT_KEYS_FALLBACK){
+      const raw=localStorage.getItem(key);if(!raw)continue;
+      const parsed=JSON.parse(raw);
+      if(parsed&&(parsed.id||parsed.items||parsed.fileName||parsed.savedAt||Array.isArray(parsed))){
+        if(Array.isArray(parsed))return parsed[0]||null;
+        return parsed;
+      }
+    }
+    return null;
   }catch{return null;}
 }
 
@@ -1579,6 +1598,7 @@ function applyRecordToForm(r){
   set('f-etapa4',r.etapa4);set('f-etapa5',r.etapa5);set('f-etapa6',r.etapa6);
   parsedItems=r.items||[];
   currentFileName=r.fileName||currentFileName||'histórico';
+  piRevisionLog=r.revisionLog||[];
   const fpName=document.getElementById('fp-name'),fpSub=document.getElementById('fp-sub');
   if(fpName)fpName.textContent=currentFileName;
   if(fpSub)fpSub.textContent=`Carregado do histórico · ${parsedItems.length} itens`;
@@ -1604,8 +1624,8 @@ function exportJSON(){
   toast('JSON exportado com sucesso!','success');
 }
 
-async function exportAllHistJSON(){
-  const hist=await loadHist();
+function exportAllHistJSON(){
+  const hist=loadHist();
   if(!hist.length){toast('Nenhum romaneio no histórico.','error');return;}
   const blob=new Blob([JSON.stringify(hist,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -1616,27 +1636,21 @@ async function exportAllHistJSON(){
 }
 
 // ============ HISTORY ============
-async function saveToHistory(){
+function saveToHistory(){
   const record=collectCurrentRecord();
   const id=record.id;
-  let hist=await loadHist();
+  let hist=loadHist();
+  // Update existing if same ID+cliente, else prepend
   hist=hist.filter(r=>!(r.id===id&&r.cliente===record.cliente));
   hist.unshift(record);
   if(hist.length>50)hist=hist.slice(0,50);
-  _histCache=hist;
-  try{
-    await fetch('/api/os-romaneio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({historico:hist})});
-  }catch(e){console.warn('Save error:',e);}
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(hist));}
+  catch(e){console.warn('localStorage full');}
 }
 
-async function loadHist(){
-  if(_histCache!==null)return _histCache;
-  try{
-    const r=await fetch('/api/os-romaneio',{cache:'no-store'});
-    const j=await r.json();
-    if(j.ok&&j.data&&Array.isArray(j.data.historico)){_histCache=j.data.historico;return _histCache;}
-  }catch(e){}
-  _histCache=[];return [];
+function loadHist(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');}
+  catch{return [];}
 }
 
 function toggleHistFilter(f){
@@ -1646,17 +1660,17 @@ function toggleHistFilter(f){
   filterHist();
 }
 
-async function filterHist(){
+function filterHist(){
   const q=(document.getElementById('hist-search')?.value||'').toLowerCase().trim();
-  let hist=await loadHist();
+  let hist=loadHist();
   if(histFilter==='week'){const wk=Date.now()-7*24*60*60*1000;hist=hist.filter(r=>new Date(r.savedAt).getTime()>wk);}
   else if(histFilter==='month'){const mo=Date.now()-30*24*60*60*1000;hist=hist.filter(r=>new Date(r.savedAt).getTime()>mo);}
   if(q){hist=hist.filter(r=>(r.id||'').toLowerCase().includes(q)||(r.cliente||'').toLowerCase().includes(q)||(r.cidade||'').toLowerCase().includes(q));}
   renderHistBody(hist);
 }
 
-async function openHist(){
-  const hist=await loadHist();
+function openHist(){
+  const hist=loadHist();
   const srch=document.getElementById('hist-search');if(srch)srch.value='';
   histFilter=null;
   ['hf-week','hf-month'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('on');});
@@ -1665,13 +1679,14 @@ async function openHist(){
   document.getElementById('hist-modal').classList.add('on');
 }
 
-async function renderHistBody(hist){
+function renderHistBody(hist){
   const body=document.getElementById('hist-body');
   document.getElementById('hist-count').textContent=`${hist.length} romaneio(s)`;
   if(!hist.length){
     body.innerHTML=`<div class="hist-empty"><div class="he-icon">📭</div><p>Nenhum romaneio encontrado.</p></div>`;return;
   }
-  const allHist=await loadHist();
+  // Get all history for index lookup
+  const allHist=loadHist();
   body.innerHTML=hist.map(r=>{
     const realIdx=allHist.findIndex(x=>x.savedAt===r.savedAt&&x.id===r.id);
     const dt=new Date(r.savedAt);
@@ -1705,8 +1720,8 @@ async function renderHistBody(hist){
 
 function closeHist(){document.getElementById('hist-modal').classList.remove('on');}
 
-async function loadFromHist(i){
-  const hist=await loadHist();const r=hist[i];if(!r)return;
+function loadFromHist(i){
+  const hist=loadHist();const r=hist[i];if(!r)return;
   applyRecordToForm(r);closeHist();
   if(r.lastScreen==='os-screen'||r.osState){
     buildOS();restoreOSState(r.osState);goTo('os-screen');
@@ -1715,10 +1730,11 @@ async function loadFromHist(i){
   toast(`Romaneio "${r.id}" carregado.`,'success');
 }
 
-async function duplicateFromHist(i){
-  const hist=await loadHist();const r=hist[i];if(!r)return;
+function duplicateFromHist(i){
+  const hist=loadHist();const r=hist[i];if(!r)return;
   const copy={...r,id:'',cliente:'',savedAt:new Date().toISOString(),osState:null,lastScreen:'form-screen'};
   applyRecordToForm(copy);
+  // Clear ID and client so user fills in
   const fId=document.getElementById('f-id'),fCli=document.getElementById('f-cli');
   if(fId)fId.value='';if(fCli)fCli.value='';
   parsedItems=JSON.parse(JSON.stringify(r.items||[]));
@@ -1729,21 +1745,19 @@ async function duplicateFromHist(i){
 }
 
 function deleteFromHist(i){
-  showConfirm('Remover romaneio?','Esta ação não pode ser desfeita.',true).then(async ok=>{
+  showConfirm('Remover romaneio?','Esta ação não pode ser desfeita.',true).then(ok=>{
     if(!ok)return;
-    let hist=await loadHist();hist.splice(i,1);
-    _histCache=hist;
-    await fetch('/api/os-romaneio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({historico:hist})});
+    let hist=loadHist();hist.splice(i,1);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(hist));
     filterHist();
     toast('Romaneio removido.','default');
   });
 }
 
 function clearAllHist(){
-  showConfirm('Remover todos os romaneios?','Todos os romaneios salvos serão excluídos permanentemente. Esta ação não pode ser desfeita.',true).then(async ok=>{
+  showConfirm('Remover todos os romaneios?','Todos os romaneios salvos serão excluídos permanentemente. Esta ação não pode ser desfeita.',true).then(ok=>{
     if(!ok)return;
-    _histCache=[];
-    await fetch('/api/os-romaneio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({historico:[]})});
+    localStorage.removeItem(STORAGE_KEY);
     filterHist();
     toast('Histórico limpo.','default');
   });
@@ -1836,6 +1850,10 @@ window.addEventListener('beforeunload',()=>{try{saveCurrentEdit(false);}catch(e)
 (function(){
 
 var piFiles=[], piItens=[];
+var piAppendMode=false;
+var piReturnScreen='form-screen';
+var piSavedOsState=null;
+var piRevisionLog=[];
 
 function piReset(){
   piFiles=[];piItens=[];
@@ -2116,9 +2134,38 @@ window.piLer=async function(){
 };
 
 window.piUsar=function(){
-  parsedItems=piItens.map(function(it,i){
+  var novos=piItens.map(function(it,i){
     return {num:String(i+1),desc:it.descricao,qtd:String(it.qtd),un:it.un||it.unidade||'un',tipo:'alm'};
   });
+  if(!novos.length){piMsg('Nenhum item extraído para adicionar.','warn');return;}
+
+  if(piAppendMode){
+    var base=Array.isArray(parsedItems)?parsedItems:[];
+    var startNum=base.length;
+    novos=novos.map(function(it,i){it.num=String(startNum+i+1);return it;});
+    parsedItems=base.concat(novos);
+    piRevisionLog.push({
+      data:new Date().toISOString(),
+      arquivos:piFiles.map(function(f){return f.name;}),
+      itens:novos.length
+    });
+    renderItemsTable();
+    updateFormSummary();
+    if(typeof triggerAutoSave==='function')triggerAutoSave();
+
+    if(piReturnScreen==='os-screen'){
+      buildOS();
+      restoreOSState(piSavedOsState);
+      goTo('os-screen');
+      updateProgressBar();
+    }else{
+      goTo('form-screen');
+    }
+    toast(novos.length+' item(ns) adicionados ao romaneio sem apagar o histórico.','success',4500);
+    return;
+  }
+
+  parsedItems=novos;
   renderItemsTable();
   document.getElementById('fp-name').textContent='Novo Romaneio (via PDF)';
   document.getElementById('fp-sub').textContent='PDF lido - '+parsedItems.length+' itens';
@@ -2127,6 +2174,12 @@ window.piUsar=function(){
 };
 
 window.piPular=function(){
+  if(piAppendMode){
+    if(piReturnScreen==='os-screen')goTo('os-screen');
+    else goTo('form-screen');
+    toast('Importação cancelada. Nada foi alterado.','default');
+    return;
+  }
   parsedItems=[];renderItemsTable();
   document.getElementById('fp-name').textContent='Novo Romaneio (criado do zero)';
   document.getElementById('fp-sub').textContent='Preencha os dados manualmente';
@@ -2135,8 +2188,19 @@ window.piPular=function(){
 };
 
 // PDF modal (from form screen)
-window.openPdfModal=function(){
+window.openPdfModal=function(append){
   piReset();
+  piAppendMode=!!append || document.getElementById('os-screen').classList.contains('active') || (Array.isArray(parsedItems)&&parsedItems.length>0);
+  piReturnScreen=document.getElementById('os-screen').classList.contains('active')?'os-screen':'form-screen';
+  piSavedOsState=(piReturnScreen==='os-screen' && typeof collectOSState==='function')?collectOSState():null;
+  var sub=document.querySelector('#pdf-import-screen .pi-sub');
+  if(sub){
+    sub.innerHTML=piAppendMode
+      ? '<strong>Modo revisão:</strong> os itens extraídos serão adicionados ao romaneio atual, sem apagar checklist, assinaturas ou itens já existentes.<br>Use para anexos/importações após o romaneio já estar concluído.'
+      : 'Suba as Reservas de Estoque ou Solicitacoes de Compra. Os itens serao extraidos automaticamente.<br>Voce pode pular e adicionar manualmente.';
+  }
+  var usar=document.getElementById('pi-btn-usar');
+  if(usar)usar.textContent=piAppendMode?'✓ Adicionar itens ao romaneio existente':'✓ Usar estes itens no Romaneio';
   goTo('pdf-import-screen');
 };
 
