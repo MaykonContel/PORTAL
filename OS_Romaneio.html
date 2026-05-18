@@ -487,6 +487,7 @@ table.it tbody tr.row-alm:nth-child(even){background:#fff8e8;}
 </style>
 </head>
 <body>
+<script>window.piRevisionLog = window.piRevisionLog || [];</script>
 
 <!-- TOAST CONTAINER -->
 <div id="toast-wrap"></div>
@@ -1500,8 +1501,7 @@ function exportPDF(){
 function escAttr(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
 // Log global de revisões/anexos pós-conclusão
-var piRevisionLog = window.piRevisionLog || [];
-window.piRevisionLog = piRevisionLog;
+window.piRevisionLog = window.piRevisionLog || [];
 
 function collectOSState(){
   const osDoc=document.getElementById('os-document');
@@ -1548,7 +1548,7 @@ function collectCurrentRecord(){
     etapa4:g('f-etapa4'),etapa5:g('f-etapa5'),etapa6:g('f-etapa6'),
     items:[...parsedItems],osState:collectOSState(),
     lastScreen:document.getElementById('os-screen').classList.contains('active')?'os-screen':'form-screen',
-    savedAt:new Date().toISOString(),fileName:currentFileName,revisionLog:(window.piRevisionLog||piRevisionLog||[])
+    savedAt:new Date().toISOString(),fileName:currentFileName,revisionLog:(window.piRevisionLog || [])
   };
 }
 
@@ -1602,7 +1602,7 @@ function applyRecordToForm(r){
   set('f-etapa4',r.etapa4);set('f-etapa5',r.etapa5);set('f-etapa6',r.etapa6);
   parsedItems=r.items||[];
   currentFileName=r.fileName||currentFileName||'histórico';
-  piRevisionLog=r.revisionLog||[]; window.piRevisionLog=piRevisionLog;
+  window.piRevisionLog = r.revisionLog || [];
   const fpName=document.getElementById('fp-name'),fpSub=document.getElementById('fp-sub');
   if(fpName)fpName.textContent=currentFileName;
   if(fpSub)fpSub.textContent=`Carregado do histórico · ${parsedItems.length} itens`;
@@ -1857,7 +1857,7 @@ var piFiles=[], piItens=[];
 var piAppendMode=false;
 var piReturnScreen='form-screen';
 var piSavedOsState=null;
-window.piRevisionLog = window.piRevisionLog || piRevisionLog;
+window.piRevisionLog = window.piRevisionLog || [];
 
 function piReset(){
   piFiles=[];piItens=[];
@@ -2148,7 +2148,7 @@ window.piUsar=function(){
     var startNum=base.length;
     novos=novos.map(function(it,i){it.num=String(startNum+i+1);return it;});
     parsedItems=base.concat(novos);
-    piRevisionLog.push({
+    window.piRevisionLog.push({
       data:new Date().toISOString(),
       arquivos:piFiles.map(function(f){return f.name;}),
       itens:novos.length
