@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portal Contel</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0c1118;
+  --bg2:      #111923;
+  --card:     #141d28;
+  --card-h:   #192436;
+  --border:   rgba(255,255,255,.07);
+  --border-h: rgba(255,255,255,.14);
+  --acc:      #f4a100;
+  --acc2:     #ffc13a;
+  --text:     #dde6f0;
+  --muted:    rgba(221,230,240,.45);
+  --muted2:   rgba(221,230,240,.2);
+  --c-teal:   #2dd4a0;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Barlow', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* GRAIN */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 999;
+}
+
+/* GLOWS */
+.glow { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+.g1 { width:700px; height:500px; top:-200px; right:-150px;
+      background: radial-gradient(circle, rgba(244,161,0,.07) 0%, transparent 65%); }
+.g2 { width:500px; height:500px; bottom:-100px; left:-150px;
+      background: radial-gradient(circle, rgba(59,158,255,.05) 0%, transparent 65%); }
+
+/* ── HEADER ── */
+header {
+  position: sticky; top: 0; z-index: 50;
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 48px;
+  background: rgba(12,17,24,.88);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+}
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+.logo-box {
+  width: 38px; height: 38px;
+  background: var(--acc); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 19px; font-weight: 900; color: #0c1118;
+  box-shadow: 0 0 20px rgba(244,161,0,.3); flex-shrink: 0;
+}
+.logo-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 800;
+  letter-spacing: 1.5px; text-transform: uppercase; color: #fff; line-height: 1;
+}
+.logo-name em { color: var(--acc); font-style: normal; }
+.logo-tagline {
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--muted2); margin-top: 2px;
+}
+.nav-right { display: flex; align-items: center; gap: 16px; }
+.pill-online {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(45,212,160,.1); border: 1px solid rgba(45,212,160,.25);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600; color: var(--c-teal);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.dot-pulse {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--c-teal);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(45,212,160,.4); }
+  50%      { opacity:.7; box-shadow: 0 0 0 5px rgba(45,212,160,0); }
+}
+#clock {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px; font-weight: 600; color: var(--muted); letter-spacing: 1px;
+}
+
+/* ── HERO ── */
+.hero {
+  position: relative; z-index: 5;
+  padding: 64px 48px 48px;
+  max-width: 1280px; margin: 0 auto;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 32px; flex-wrap: wrap;
+}
+.hero-eyebrow { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.eyebrow-dash { width: 28px; height: 2px; background: var(--acc); border-radius: 2px; }
+.eyebrow-lbl { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--acc); }
+h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(48px, 6vw, 80px); font-weight: 900;
+  line-height: .9; text-transform: uppercase; letter-spacing: -1px; color: #fff;
+}
+h1 .dim { color: rgba(221,230,240,.25); }
+h1 .hi  { color: var(--acc); }
+.hero-sub { margin-top: 18px; font-size: 14px; color: var(--muted); line-height: 1.7; max-width: 420px; }
+.hero-right { display: flex; gap: 12px; flex-shrink: 0; }
+.hero-stat {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 20px; text-align: center; min-width: 80px;
+}
+.hs-val { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; color: #fff; line-height: 1; }
+.hs-lbl { font-size: 10px; color: var(--muted2); letter-spacing: 1px; text-transform: uppercase; margin-top: 4px; }
+
+/* ── SECTION LABEL ── */
+.section-row {
+  position: relative; z-index: 5;
+  max-width: 1280px; margin: 0 auto 28px; padding: 0 48px;
+  display: flex; align-items: center; gap: 14px;
+}
+.section-lbl { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--muted2); white-space: nowrap; }
+.section-line { flex: 1; height: 1px; background: var(--border); }
+.section-count { font-size: 11px; font-weight: 600; color: var(--muted2); background: var(--card); border: 1px solid var(--border); padding: 2px 10px; border-radius: 20px; }
+
+/* ── GRID ── */
+.grid {
+  position: relative; z-index: 5;
+  max-width: 1280px; margin: 0 auto;
+  padding: 0 48px 80px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+/* ── CARD ── */
+.card {
+  position: relative;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 18px; padding: 24px;
+  text-decoration: none; color: inherit;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: transform .28s cubic-bezier(.23,1,.32,1),
+              border-color .25s, box-shadow .28s, background .25s;
+  animation: fadeUp .55s cubic-bezier(.23,1,.32,1) both;
+}
+.card:nth-child(1) { animation-delay: .04s }
+.card:nth-child(2) { animation-delay: .10s }
+.card:nth-child(3) { animation-delay: .16s }
+.card:nth-child(5) { animation-delay: .28s }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* stripe colorida no topo */
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; border-radius: 18px 18px 0 0;
+  background: var(--stripe); opacity: .85;
+}
+/* glow */
+.card::after {
+  content: ''; position: absolute; inset: 0; border-radius: 18px;
+  background: var(--glow-bg); opacity: 0; transition: opacity .3s;
+}
+.card:hover {
+  transform: translateY(-5px);
+  border-color: var(--border-h);
+  box-shadow: 0 24px 60px rgba(0,0,0,.45), 0 0 0 1px var(--stripe-dim);
+  background: var(--card-h);
+}
+.card:hover::after { opacity: 1; }
+.card:active { transform: translateY(-2px); }
+
+.card-icon {
+  width: 48px; height: 48px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; background: var(--icon-bg);
+  margin-bottom: 18px; flex-shrink: 0;
+  position: relative; z-index: 1;
+  transition: transform .25s;
+}
+.card:hover .card-icon { transform: scale(1.08); }
+
+.card-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .3px;
+  color: #fff; line-height: 1; margin-bottom: 7px;
+  position: relative; z-index: 1;
+}
+.card-desc {
+  font-size: 12.5px; color: var(--muted);
+  line-height: 1.55; margin-bottom: 20px; flex: 1;
+  position: relative; z-index: 1;
+}
+.card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; position: relative; z-index: 1; }
+.tag {
+  font-size: 10px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 20px;
+  background: var(--tag-bg); border: 1px solid var(--tag-bd); color: var(--tag-cl);
+}
+
+.card-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+  padding-top: 16px; border-top: 1px solid var(--border);
+}
+.open-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--btn-bg); border: 1px solid var(--btn-bd);
+  border-radius: 9px; padding: 7px 14px;
+  font-size: 12px; font-weight: 700; color: var(--btn-cl); letter-spacing: .5px;
+  transition: filter .2s;
+}
+.open-btn svg { width:13px; height:13px; transition: transform .2s; }
+.card:hover .open-btn svg { transform: translate(2px,-2px); }
+.card:hover .open-btn { filter: brightness(1.15); }
+
+.card-status { display: flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; color: var(--c-teal); }
+.sd { width:5px; height:5px; border-radius:50%; background:var(--c-teal); animation: pulse 2.5s infinite; }
+
+/* ── COLOR THEMES ── */
+.amber {
+  --stripe:#f4a100; --stripe-dim:rgba(244,161,0,.3);
+  --glow-bg:radial-gradient(ellipse at 0% 0%, rgba(244,161,0,.07), transparent 55%);
+  --icon-bg:rgba(244,161,0,.12);
+  --tag-bg:rgba(244,161,0,.1); --tag-bd:rgba(244,161,0,.22); --tag-cl:#f4a100;
+  --btn-bg:rgba(244,161,0,.12); --btn-bd:rgba(244,161,0,.3); --btn-cl:#ffc13a;
+}
+.blue {
+  --stripe:#3b9eff; --stripe-dim:rgba(59,158,255,.3);
+  --glow-bg:radial-gradient(ellipse at 0% 0%, rgba(59,158,255,.07), transparent 55%);
+  --icon-bg:rgba(59,158,255,.1);
+  --tag-bg:rgba(59,158,255,.08); --tag-bd:rgba(59,158,255,.2); --tag-cl:#3b9eff;
+  --btn-bg:rgba(59,158,255,.1); --btn-bd:rgba(59,158,255,.28); --btn-cl:#3b9eff;
+}
+.teal {
+  --stripe:#2dd4a0; --stripe-dim:rgba(45,212,160,.3);
+  --glow-bg:radial-gradient(ellipse at 0% 0%, rgba(45,212,160,.07), transparent 55%);
+  --icon-bg:rgba(45,212,160,.1);
+  --tag-bg:rgba(45,212,160,.08); --tag-bd:rgba(45,212,160,.2); --tag-cl:#2dd4a0;
+  --btn-bg:rgba(45,212,160,.1); --btn-bd:rgba(45,212,160,.28); --btn-cl:#2dd4a0;
+}
+.purple {
+  --stripe:#a78bfa; --stripe-dim:rgba(167,139,250,.3);
+  --glow-bg:radial-gradient(ellipse at 0% 0%, rgba(167,139,250,.07), transparent 55%);
+  --icon-bg:rgba(167,139,250,.1);
+  --tag-bg:rgba(167,139,250,.08); --tag-bd:rgba(167,139,250,.2); --tag-cl:#a78bfa;
+  --btn-bg:rgba(167,139,250,.1); --btn-bd:rgba(167,139,250,.28); --btn-cl:#a78bfa;
+}
+
+.rose {
+  --stripe:#f472b6; --stripe-dim:rgba(244,114,182,.3);
+  --glow-bg:radial-gradient(ellipse at 0% 0%, rgba(244,114,182,.07), transparent 55%);
+  --icon-bg:rgba(244,114,182,.1);
+  --tag-bg:rgba(244,114,182,.08); --tag-bd:rgba(244,114,182,.2); --tag-cl:#f472b6;
+  --btn-bg:rgba(244,114,182,.1); --btn-bd:rgba(244,114,182,.28); --btn-cl:#f472b6;
+}
+.green {
+  --stripe:#22c55e; --stripe-dim:rgba(34,197,94,.3);
+  --glow-bg:radial-gradient(ellipse at 0% 0%, rgba(34,197,94,.07), transparent 55%);
+  --icon-bg:rgba(34,197,94,.1);
+  --tag-bg:rgba(34,197,94,.08); --tag-bd:rgba(34,197,94,.2); --tag-cl:#22c55e;
+  --btn-bg:rgba(34,197,94,.1); --btn-bd:rgba(34,197,94,.28); --btn-cl:#22c55e;
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative; z-index: 5;
+  border-top: 1px solid var(--border);
+  padding: 20px 48px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.ft-brand { font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted2); }
+.ft-note { font-size:11px; color:var(--muted2); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  header { padding: 0 20px; }
+  .hero  { padding: 40px 20px 32px; }
+  .section-row { padding: 0 20px; }
+  .grid  { padding: 0 20px 60px; grid-template-columns: 1fr; }
+  footer { padding: 16px 20px; }
+  #clock, .hero-right { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="glow g1"></div>
+<div class="glow g2"></div>
+
+<header>
+  <a class="logo" href="#">
+    <div class="logo-box">CT</div>
+    <div>
+      <div class="logo-name">Con<em>tel</em></div>
+      <div class="logo-tagline">Portal de Ferramentas</div>
+    </div>
+  </a>
+  <nav class="nav-right">
+    <div id="clock"></div>
+    <div class="pill-online"><div class="dot-pulse"></div>Operacional</div>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-eyebrow">
+      <div class="eyebrow-dash"></div>
+      <div class="eyebrow-lbl">Acesso rápido</div>
+    </div>
+    <h1>
+      <div class="dim">Ferramentas</div>
+      <div class="hi">Contel</div>
+    </h1>
+
+  </div>
+  <div class="hero-right">
+    <div class="hero-stat">
+      <div class="hs-val">5</div>
+      <div class="hs-lbl">Sistemas</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hs-val" style="color:var(--c-teal)">●</div>
+      <div class="hs-lbl">Online</div>
+    </div>
+  </div>
+</section>
+
+<div class="section-row">
+  <div class="section-lbl">Aplicações disponíveis</div>
+  <div class="section-line"></div>
+  <div class="section-count">6 ferramentas</div>
+</div>
+
+<main class="grid">
+
+  <a class="card amber" href="OS_Romaneio.html">
+    <div class="card-icon">📦</div>
+    <div class="card-name">OS Romaneio</div>
+    <div class="card-desc">Gerador de Ordem de Serviço por planilha. Importa Excel, exibe mapa de rotas e gera OS completas por lote.</div>
+    <div class="card-tags">
+      <span class="tag">Excel</span><span class="tag">Mapa</span><span class="tag">Lote</span>
+    </div>
+    <div class="card-foot">
+      <span class="open-btn">
+        Abrir ferramenta
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 3h6v6M13 3 6 10M3 6v7h7"/>
+        </svg>
+      </span>
+      <div class="card-status"><div class="sd"></div>Ativo</div>
+    </div>
+  </a>
+
+  <a class="card blue" href="ordem-de-servico-contel.html">
+    <div class="card-icon">📋</div>
+    <div class="card-name">Ordem de Serviço</div>
+    <div class="card-desc">Formulário completo para emissão de OS Contel. Preencha os dados, registre equipamentos e exporte em PDF.</div>
+    <div class="card-tags">
+      <span class="tag">PDF</span><span class="tag">Formulário</span><span class="tag">Contel</span>
+    </div>
+    <div class="card-foot">
+      <span class="open-btn">
+        Abrir ferramenta
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 3h6v6M13 3 6 10M3 6v7h7"/>
+        </svg>
+      </span>
+      <div class="card-status"><div class="sd"></div>Ativo</div>
+    </div>
+  </a>
+
+  <a class="card teal" href="cronograma_obras.html">
+    <div class="card-icon">🏗️</div>
+    <div class="card-name">Cronograma Obras</div>
+    <div class="card-desc">Planejamento e acompanhamento executivo de obras. Gantt, marcos, caminho crítico e progresso por etapa.</div>
+    <div class="card-tags">
+      <span class="tag">Gantt</span><span class="tag">Obras</span><span class="tag">Progresso</span>
+    </div>
+    <div class="card-foot">
+      <span class="open-btn">
+        Abrir ferramenta
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 3h6v6M13 3 6 10M3 6v7h7"/>
+        </svg>
+      </span>
+      <div class="card-status"><div class="sd"></div>Ativo</div>
+    </div>
+  </a>
+
+  <a class="card rose" href="https://contel-p8uc.onrender.com/" target="_blank" rel="noopener">
+    <div class="card-icon">📊</div>
+    <div class="card-name">Dashboard Gerencial</div>
+    <div class="card-desc">Painel gerencial online Contel. Abre diretamente no navegador via servidor externo.</div>
+    <div class="card-tags">
+      <span class="tag">Online</span><span class="tag">Gerencial</span><span class="tag">Dashboard</span>
+    </div>
+    <div class="card-foot">
+      <span class="open-btn">
+        Abrir ferramenta
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 3h6v6M13 3 6 10M3 6v7h7"/>
+        </svg>
+      </span>
+      <div class="card-status"><div class="sd"></div>Ativo</div>
+    </div>
+  </a>
+
+  <a class="card purple" href="organizador-pessoal.html">
+    <div class="card-icon">🗂️</div>
+    <div class="card-name">Organizador Pessoal</div>
+    <div class="card-desc">Hub de produtividade pessoal. Tarefas, notas, hábitos, finanças e agenda num painel unificado.</div>
+    <div class="card-tags">
+      <span class="tag">Tarefas</span><span class="tag">Notas</span><span class="tag">Finanças</span>
+    </div>
+    <div class="card-foot">
+      <span class="open-btn">
+        Abrir ferramenta
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 3h6v6M13 3 6 10M3 6v7h7"/>
+        </svg>
+      </span>
+      <div class="card-status"><div class="sd"></div>Ativo</div>
+    </div>
+  </a>
+
+  <a class="card green" href="contel_v3.html">
+    <div class="card-icon">🔁</div>
+    <div class="card-name">Pipeline de Obras</div>
+    <div class="card-desc">Visualização Kanban do pipeline de obras Contel. Acompanhe o status de cada obra por fase, com filtros e indicadores visuais.</div>
+    <div class="card-tags">
+      <span class="tag">Kanban</span><span class="tag">Pipeline</span><span class="tag">Status</span>
+    </div>
+    <div class="card-foot">
+      <span class="open-btn">
+        Abrir ferramenta
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 3h6v6M13 3 6 10M3 6v7h7"/>
+        </svg>
+      </span>
+      <div class="card-status"><div class="sd"></div>Ativo</div>
+    </div>
+  </a>
+
+</main>
+
+<footer>
+  <div class="ft-brand">Contel © 2025</div>
+  <div class="ft-note">Mantenha todos os HTMLs na mesma pasta para os links funcionarem</div>
+</footer>
+
+<script>
+  const cl = document.getElementById('clock');
+  function tick() {
+    const n = new Date();
+    cl.textContent = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0');
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>
