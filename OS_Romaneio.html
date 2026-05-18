@@ -1499,6 +1499,10 @@ function exportPDF(){
 
 function escAttr(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 
+// Log global de revisões/anexos pós-conclusão
+var piRevisionLog = window.piRevisionLog || [];
+window.piRevisionLog = piRevisionLog;
+
 function collectOSState(){
   const osDoc=document.getElementById('os-document');
   if(!osDoc||!osDoc.innerHTML.trim())return null;
@@ -1544,7 +1548,7 @@ function collectCurrentRecord(){
     etapa4:g('f-etapa4'),etapa5:g('f-etapa5'),etapa6:g('f-etapa6'),
     items:[...parsedItems],osState:collectOSState(),
     lastScreen:document.getElementById('os-screen').classList.contains('active')?'os-screen':'form-screen',
-    savedAt:new Date().toISOString(),fileName:currentFileName,revisionLog:piRevisionLog||[]
+    savedAt:new Date().toISOString(),fileName:currentFileName,revisionLog:(window.piRevisionLog||piRevisionLog||[])
   };
 }
 
@@ -1598,7 +1602,7 @@ function applyRecordToForm(r){
   set('f-etapa4',r.etapa4);set('f-etapa5',r.etapa5);set('f-etapa6',r.etapa6);
   parsedItems=r.items||[];
   currentFileName=r.fileName||currentFileName||'histórico';
-  piRevisionLog=r.revisionLog||[];
+  piRevisionLog=r.revisionLog||[]; window.piRevisionLog=piRevisionLog;
   const fpName=document.getElementById('fp-name'),fpSub=document.getElementById('fp-sub');
   if(fpName)fpName.textContent=currentFileName;
   if(fpSub)fpSub.textContent=`Carregado do histórico · ${parsedItems.length} itens`;
@@ -1853,7 +1857,7 @@ var piFiles=[], piItens=[];
 var piAppendMode=false;
 var piReturnScreen='form-screen';
 var piSavedOsState=null;
-var piRevisionLog=[];
+window.piRevisionLog = window.piRevisionLog || piRevisionLog;
 
 function piReset(){
   piFiles=[];piItens=[];
