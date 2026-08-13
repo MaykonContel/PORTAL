@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Obras Manager</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3 L5 29 M16 3 L27 29 M5 29 L27 29' stroke='%234C9EEB' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Cpath d='M11.77 13 L20.23 13' stroke='%234C9EEB' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M8.4 21 L23.6 21' stroke='%234C9EEB' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='16' cy='3' r='3' fill='%23E8A33D'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none">
+          <path d="M16 3 L5 29 M16 3 L27 29 M5 29 L27 29" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11.77 13 L20.23 13" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M8.4 21 L23.6 21" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="16" cy="3" r="2.6" fill="var(--amber)"/>
+        </svg>
+      </div>
+      <div class="brand-text">Obras Manager</div>
+    </div>
+
+    <div class="nav-overview" id="nav-overview">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Visão Geral
+    </div>
+    <div class="nav-overview" id="nav-kanban-geral">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="10" rx="1"/><rect x="16" y="4" width="5" height="13" rx="1"/></svg>
+      Kanban Geral
+    </div>
+
+    <div class="obras-header">
+      <span>Obras</span>
+      <button class="btn btn-icon btn-primary" id="btn-nova-obra" title="Nova obra">+</button>
+    </div>
+
+    <div id="obras-list"></div>
+  </aside>
+
+  <main>
+    <div id="empty-obra" class="empty-state" style="display:none">
+      <h3>Nenhuma obra selecionada</h3>
+      <p>Crie uma nova obra ou selecione uma na lista ao lado.</p>
+    </div>
+
+    <!-- ===================== VISÃO GERAL (Dashboard) ===================== -->
+    <div id="overview-content" style="display:none">
+      <div class="dash-title">Visão Geral</div>
+      <div class="dash-sub" id="overview-sub"></div>
+
+      <div class="kpi-row" id="overview-kpis"></div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">Progresso por obra</div>
+        <div id="overview-progress-bars"></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">Carga de trabalho por responsável</div>
+        <div id="overview-workload"></div>
+      </div>
+
+      <div class="dash-section">
+        <div class="dash-section-title">Tarefas em risco / atrasadas</div>
+        <table class="risk-table">
+          <thead><tr><th>Tarefa</th><th>Obra</th><th>Responsável</th><th>Status</th><th>Prazo</th></tr></thead>
+          <tbody id="overview-risk-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===================== KANBAN GERAL (todas as obras) ===================== -->
+    <div id="kanban-geral-content" style="display:none">
+      <div class="dash-title">Kanban Geral</div>
+      <div class="dash-sub" id="kanban-geral-sub">Todas as demandas, de todas as obras, num só quadro. Clique num card para entrar na obra.</div>
+      <div class="kanban-board" id="kanban-geral-board"></div>
+    </div>
+
+    <!-- ===================== OBRA (Grade / Gantt / Kanban / Calendário) ===================== -->
+    <div id="obra-content" style="display:none">
+      <div class="topbar">
+        <div>
+          <div class="obra-title" id="obra-title">—</div>
+          <div class="obra-sub" id="obra-sub"></div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm btn-icon activity-toggle" id="btn-atividade" title="Atividade">
+            🕘<span class="activity-badge" id="activity-badge" style="display:none">0</span>
+          </button>
+          <button class="btn btn-sm" id="btn-editar-obra">Editar obra</button>
+          <button class="btn btn-sm btn-primary" id="btn-nova-tarefa">+ Nova tarefa</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-view="grid">Grade</div>
+        <div class="tab" data-view="gantt">Gantt</div>
+        <div class="tab" data-view="kanban">Kanban</div>
+        <div class="tab" data-view="calendar">Calendário</div>
+      </div>
+
+      <!-- Filtros (Grade + Kanban) -->
+      <div class="filter-bar" id="filter-bar">
+        <select id="f-filtro-status">
+          <option value="">Status: todos</option>
+          <option>Nao iniciado</option>
+          <option>Em andamento</option>
+          <option>Atrasado</option>
+          <option>Concluido</option>
+        </select>
+        <select id="f-filtro-responsavel"><option value="">Responsável: todos</option></select>
+        <select id="f-filtro-prioridade">
+          <option value="">Prioridade: todas</option>
+          <option>Baixa</option>
+          <option>Media</option>
+          <option>Alta</option>
+          <option>Critica</option>
+        </select>
+        <div class="filter-chip-toggle" id="f-filtro-risco">🚩 Só em risco</div>
+        <span class="filter-clear" id="btn-limpar-filtros">Limpar filtros</span>
+      </div>
+
+      <div class="view active" id="view-grid">
+        <div class="grid-toolbar">
+          <span class="hint" id="grid-count-hint"></span>
+          <button class="btn btn-sm" id="btn-exportar-csv">⭳ Exportar CSV</button>
+        </div>
+        <div class="grid-table-wrap">
+          <table class="grid-table">
+            <thead>
+              <tr>
+                <th style="width:30%">Tarefa</th>
+                <th>Responsável</th>
+                <th>Status</th>
+                <th>Prioridade</th>
+                <th>Início</th>
+                <th>Fim</th>
+                <th>Duração</th>
+                <th>Progresso</th>
+                <th style="width:80px"></th>
+              </tr>
+            </thead>
+            <tbody id="grid-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="view" id="view-gantt">
+        <div class="gantt-wrap" id="gantt-wrap"></div>
+      </div>
+
+      <div class="view" id="view-kanban">
+        <div class="kanban-board" id="kanban-board"></div>
+      </div>
+
+      <div class="view" id="view-calendar">
+        <div class="calendar-header">
+          <div class="calendar-nav">
+            <button class="btn btn-sm" id="btn-cal-prev">‹</button>
+            <div class="calendar-title" id="calendar-title"></div>
+            <button class="btn btn-sm" id="btn-cal-next">›</button>
+          </div>
+          <button class="btn btn-sm" id="btn-cal-hoje">Hoje</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Painel de Atividade -->
+<div class="activity-panel" id="activity-panel">
+  <div class="activity-panel-header">
+    <h3>Atividade da sessão</h3>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span class="filter-clear" id="btn-limpar-atividade">Limpar tudo</span>
+      <span class="activity-close" id="btn-fechar-atividade" title="Fechar">✕</span>
+    </div>
+  </div>
+  <div class="activity-list" id="activity-list"></div>
+</div>
+
+<!-- Modal Obra -->
+<div class="modal-overlay" id="modal-obra" style="display:none">
+  <div class="modal">
+    <h3 id="modal-obra-title">Nova obra</h3>
+
+    <div class="field" id="campo-modelo">
+      <label>Modelo (opcional — só sugere etapas, você edita antes de criar)</label>
+      <div class="template-cards">
+        <div class="template-card selected" data-template="nenhum">
+          <div class="template-card-title">Em branco</div>
+          <div class="template-card-desc">Começar sem tarefas</div>
+        </div>
+        <div class="template-card" data-template="torre">
+          <div class="template-card-title">Torre metálica</div>
+          <div class="template-card-desc">Levantamento → Projeto → Fabricação → Montagem</div>
+        </div>
+        <div class="template-card" data-template="reforco">
+          <div class="template-card-title">Reforço estrutural</div>
+          <div class="template-card-desc">Diagnóstico → Proposta → Execução</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" id="campo-tarefas-iniciais">
+      <label>Tarefas iniciais (edite, remova ou adicione antes de criar a obra)</label>
+      <div id="lista-tarefas-iniciais" class="tarefas-iniciais-list"></div>
+      <button class="btn btn-sm btn-ghost" id="btn-add-tarefa-inicial" type="button" style="align-self:flex-start; margin-top:4px;">+ Adicionar etapa</button>
+    </div>
+
+    <div class="field">
+      <label>Nome da obra</label>
+      <input type="text" id="f-obra-nome" placeholder="Ex: Torre Setor Sul">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Cliente</label>
+        <input type="text" id="f-obra-cliente" placeholder="ATC, SBA, IHS, HLB, Neoenergia...">
+      </div>
+      <div class="field">
+        <label>Centro de custo</label>
+        <input type="text" id="f-obra-cc" placeholder="Sienge">
+      </div>
+    </div>
+    <div class="field">
+      <label>Responsável</label>
+      <input type="text" id="f-obra-resp">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Início</label>
+        <input type="date" id="f-obra-inicio">
+      </div>
+      <div class="field">
+        <label>Fim previsto</label>
+        <input type="date" id="f-obra-fim">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Status</label>
+        <select id="f-obra-status">
+          <option>Planejamento</option>
+          <option>Em andamento</option>
+          <option>Pausado</option>
+          <option>Concluido</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Cor</label>
+        <input type="color" id="f-obra-cor" value="#4C9EEB" style="height:38px; padding:2px;">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-excluir-obra" style="display:none">Excluir</button>
+      <button class="btn btn-ghost" id="btn-cancelar-obra">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-obra">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tarefa (estilo cartão Trello) -->
+<div class="modal-overlay" id="modal-tarefa" style="display:none">
+  <div class="modal modal-trello">
+    <div class="trello-breadcrumb" id="trello-breadcrumb"></div>
+    <input type="text" id="f-tarefa-nome" class="trello-title-input" placeholder="Nome da tarefa">
+
+    <div class="field-row">
+      <div class="field">
+        <label>👤 Responsável</label>
+        <input type="text" id="f-tarefa-resp">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="f-tarefa-status">
+          <option>Nao iniciado</option>
+          <option>Em andamento</option>
+          <option>Atrasado</option>
+          <option>Concluido</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Subtarefa de</label>
+      <select id="f-tarefa-parent"><option value="">— Nenhuma (tarefa de nível superior) —</option></select>
+    </div>
+    <div class="field">
+      <label>Depende de (termina antes de iniciar esta)</label>
+      <select id="f-tarefa-predecessor"><option value="">— Nenhuma —</option></select>
+    </div>
+
+    <div class="trello-section-title">🏷️ Etiquetas</div>
+    <div class="trello-label-row">
+      <select id="f-tarefa-prio" class="trello-label-select">
+        <option>Baixa</option>
+        <option selected>Media</option>
+        <option>Alta</option>
+        <option>Critica</option>
+      </select>
+      <div class="trello-toggle-chip" id="chip-marco" data-field="f-tarefa-marco">◆ Marco</div>
+      <div class="trello-toggle-chip" id="chip-risco" data-field="f-tarefa-risco">🚩 Em risco</div>
+      <div class="trello-toggle-chip" id="chip-bloqueada" data-field="f-tarefa-bloqueada">🔒 Bloqueada</div>
+      <input type="checkbox" id="f-tarefa-marco" style="display:none">
+      <input type="checkbox" id="f-tarefa-risco" style="display:none">
+      <input type="checkbox" id="f-tarefa-bloqueada" style="display:none">
+    </div>
+
+    <div class="trello-section-title">📅 Datas</div>
+    <div class="hint" id="aviso-tarefa-resumo" style="display:none; background:rgba(76,158,235,0.08); border:1px solid var(--accent-dim); border-radius:6px; padding:8px 10px; margin-bottom:10px;">
+      ℹ️ Esta tarefa tem subtarefas — status, início, fim e progresso são calculados automaticamente a partir delas (não editáveis diretamente aqui).
+    </div>
+    <div class="hint" id="aviso-tarefa-herdado" style="display:none; background:rgba(76,158,235,0.08); border:1px solid var(--accent-dim); border-radius:6px; padding:8px 10px; margin-bottom:10px;">
+      🔗 O início é herdado automaticamente do fim da tarefa predecessora.
+    </div>
+    <div class="field-row field-row-3">
+      <div class="field">
+        <label>Início</label>
+        <input type="date" id="f-tarefa-inicio">
+      </div>
+      <div class="field">
+        <label>Duração (dias)</label>
+        <input type="number" id="f-tarefa-duracao" min="1" placeholder="ex: 5">
+      </div>
+      <div class="field">
+        <label>Fim</label>
+        <input type="date" id="f-tarefa-fim">
+      </div>
+    </div>
+    <div class="field">
+      <label>Progresso (%)</label>
+      <input type="number" id="f-tarefa-pct" min="0" max="100" value="0">
+    </div>
+
+    <div class="trello-section-title" id="checklist-section-title" style="display:none">☑️ Checklist <span id="checklist-progress" class="hint"></span></div>
+    <div id="checklist-wrap" style="display:none">
+      <div class="checklist-bar-track"><div class="checklist-bar-fill" id="checklist-bar-fill"></div></div>
+      <div id="checklist-items"></div>
+      <div class="checklist-add-row">
+        <input type="text" id="checklist-add-input" placeholder="Adicionar item ao checklist...">
+        <button class="btn btn-sm" id="btn-checklist-add">Adicionar</button>
+      </div>
+    </div>
+
+    <div class="trello-section-title">📝 Descrição</div>
+    <div class="field">
+      <textarea id="f-tarefa-obs" rows="3" placeholder="Adicione uma descrição mais detalhada..."></textarea>
+    </div>
+
+    <div class="trello-section-title" id="comentarios-section-title" style="display:none">💬 Comentários e atividade</div>
+    <div id="comentarios-wrap" style="display:none">
+      <div class="comment-add-row">
+        <input type="text" id="comentario-autor" placeholder="Seu nome" class="comment-autor-input">
+        <input type="text" id="comentario-texto" placeholder="Escrever um comentário..." class="comment-texto-input">
+        <button class="btn btn-sm btn-primary" id="btn-comentar">Comentar</button>
+      </div>
+      <div id="comentarios-list" class="comentarios-list"></div>
+    </div>
+
+    <div class="hint" id="salve-para-checklist-hint" style="margin-top:6px;">💡 Salve a tarefa para habilitar comentários.</div>
+
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="btn-excluir-tarefa" style="display:none">Excluir</button>
+      <button class="btn btn-ghost" id="btn-cancelar-tarefa">Cancelar</button>
+      <button class="btn btn-primary" id="btn-salvar-tarefa">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
